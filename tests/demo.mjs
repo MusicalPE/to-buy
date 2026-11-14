@@ -11,6 +11,16 @@ await p.fill("#addText", "미리보기 물건"); await p.click("#addForm button[
 await p.locator(".items .box").first().click(); await p.waitForTimeout(350);
 check(await p.evaluate(() => localStorage.getItem("tobuy-data")) === null, "미리보기가 이 기기 목록을 건드림");
 await noOverflow(p, "미리보기 휴대폰");
+// 미리보기 내역과 영수증 찍기(지어낸 내용)
+await p.click('.tabbar button[data-tab="log"]');
+check(await p.locator("#recList li[data-id]").count() >= 3 && await p.locator("#monBars .bar").count() >= 3, "미리보기 내역이 안 나옴");
+await p.screenshot({ path: "log_390.png", fullPage: true });
+await p.click("#scanBtn"); await p.setInputFiles("#scanFile", { name: "r.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64") });
+await p.waitForSelector("#recDlg[open]");
+check(await p.inputValue("#recTotal") === "23450" && await p.locator("#recItems .irow").count() === 6, "미리보기 영수증 찍기가 안 됨");
+await p.screenshot({ path: "rec_390.png" });
+await p.click("#recSave");
+await noOverflow(p, "미리보기 내역");
 await p.goto(PAGE + "?demo"); await p.waitForTimeout(600);
 await p.screenshot({ path: "demo_390.png", fullPage: true });
 await p.screenshot({ path: "demo_390_top.png" });

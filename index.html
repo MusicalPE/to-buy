@@ -76,8 +76,9 @@ h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,8.6vw,46px)
 .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
 .btn.small{padding:7px 12px;font-size:13px;border-radius:10px}
 .btn.danger{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
-.pick{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
-.pick-label{font-size:12px;color:var(--muted);font-weight:700;flex:none;width:34px}
+/* 단추가 다음 줄로 넘어가도 "어디서"·"언제" 글자 아래로 들어가지 않고 첫 단추와 줄을 맞춤 */
+.pick{display:flex;align-items:center;flex-wrap:wrap;gap:6px;position:relative;padding-left:44px}
+.pick-label{font-size:12px;color:var(--muted);font-weight:700;position:absolute;left:0;top:8px;width:40px}
 .pick .chip input[type=date]{max-width:118px}
 .chip{flex:none;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:transparent;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
 .chip[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);background:var(--bg)}
@@ -141,6 +142,33 @@ body[data-shop] .box{width:32px;height:32px}
 .news-item h3 span{font-family:var(--f-mono);color:var(--accent)}
 .news-item ul{margin:0;padding-left:18px;font-size:14px}
 
+/* 내역 */
+.month{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.month b{font-family:var(--f-display);font-weight:400;font-size:22px}
+.monsum{display:flex;align-items:baseline;gap:10px;margin:10px 0 6px}
+.monsum span{font-family:var(--f-display);font-size:34px;color:var(--accent);line-height:1.1}
+.monsum small{color:var(--muted);font-size:13px}
+.bar{display:grid;grid-template-columns:minmax(64px,28%) 1fr auto;align-items:center;gap:10px;padding:5px 0;font-size:14px}
+.bar .bname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:10px;border-radius:99px;background:var(--rule);overflow:hidden}
+.bar .fill{height:100%;border-radius:99px;background:var(--c,var(--muted));min-width:4px}
+.bar .amt{font-family:var(--f-mono);font-size:13px;white-space:nowrap}
+.logbtns{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+.logbtns .btn{padding:14px 10px}
+.rlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.rlist li button{width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;text-align:left;background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--c,var(--muted));border-radius:12px;padding:12px 14px}
+.rlist .rdate{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.rlist .rstore{min-width:0;overflow-wrap:anywhere;font-weight:700}
+.rlist .rstore small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.rlist .ramt{font-family:var(--f-mono);font-size:14px;white-space:nowrap}
+#recPhoto{display:block;width:100%;max-height:38vh;object-fit:contain;background:var(--bg);border:1px solid var(--line);border-radius:12px;margin:8px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.two label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted);min-width:0}
+.irow{display:grid;grid-template-columns:1fr 96px auto;gap:6px;align-items:center;padding:4px 0}
+.irow .field{padding:8px 10px;font-size:15px;min-width:0}
+#recItemsNote{font-size:12px}
+#busyDlg{text-align:center;width:auto}
+
 /* 아래 메뉴 */
 .tabbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--paper);border-top:1px solid var(--line);
   padding:8px max(12px,calc((100vw - 520px)/2)) calc(8px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 18px rgba(42,40,36,.06)}
@@ -201,6 +229,26 @@ details.more .dl{margin-top:10px}
   </div>
 </div>
 
+<!-- 내역: 영수증으로 쌓는 장보기 기록 -->
+<section class="view" id="viewLog" hidden>
+  <div class="card">
+    <div class="month">
+      <button type="button" class="mini" id="monPrev" aria-label="이전 달">이전</button>
+      <b id="monTitle"></b>
+      <button type="button" class="mini" id="monNext" aria-label="다음 달">다음</button>
+    </div>
+    <div class="monsum"><span id="monSum"></span><small id="monCount"></small></div>
+    <div id="monBars"></div>
+    <p id="allSum"></p>
+  </div>
+  <div class="logbtns">
+    <button class="btn" type="button" id="scanBtn">영수증 찍어 넣기</button>
+    <button class="btn ghost" type="button" id="manualBtn">직접 적기</button>
+  </div>
+  <input type="file" id="scanFile" accept="image/*" hidden>
+  <ul class="rlist" id="recList"></ul>
+</section>
+
 <!-- 장바구니 -->
 <section class="view" id="viewHome">
   <div class="status"><span class="tally" id="tally"></span><span class="conn" id="conn"></span></div>
@@ -233,17 +281,13 @@ details.more .dl{margin-top:10px}
   </details>
 </section>
 
-<!-- 가족 -->
-<section class="view" id="viewFam" hidden>
-  <div class="card">
+<!-- 설정 -->
+<section class="view" id="viewSet" hidden>
+  <div class="card" id="famCard">
     <h2 id="acctTitle">가족과 같이 쓰기</h2>
     <div id="acctBody"></div>
     <div class="msg" id="acctMsg" aria-live="polite"></div>
   </div>
-</section>
-
-<!-- 설정 -->
-<section class="view" id="viewSet" hidden>
   <div class="card">
     <h2>가게 고치기</h2>
     <p>색 동그라미를 누르면 색이 바뀌어요. 가게를 지우면 그 물건은 "아무 데서나"로 가요.</p>
@@ -261,6 +305,20 @@ details.more .dl{margin-top:10px}
       <input class="field" id="dueNew" type="number" min="0" max="90" inputmode="numeric" placeholder="며칠 뒤 (예: 10)" aria-label="며칠 뒤">
       <button class="btn small" type="submit">더하기</button>
     </form>
+  </div>
+  <div class="card" id="aiCard">
+    <h2>영수증 읽기 AI</h2>
+    <p>영수증 사진은 구글 Gemini(AI)가 읽어요. 사진은 읽고 나서 바로 버리고, 읽은 내용만 내역에 남겨요.</p>
+    <p id="aiState"></p>
+    <div id="aiKeyBox">
+      <p>내 AI 키는 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>에서 구글 계정으로 받을 수 있어요. [API 키 만들기]로 만든 키를 아래에 붙여 넣어 주세요.</p>
+      <form class="add-row" id="aiKeyForm" autocomplete="off">
+        <input class="field" id="aiKeyInput" type="text" maxlength="100" placeholder="AI 키 붙여 넣기" aria-label="AI 키" autocapitalize="off" spellcheck="false">
+        <button class="btn small" type="submit">저장</button>
+      </form>
+      <div class="dl" style="margin-top:8px"><button class="btn small ghost" type="button" id="aiKeyClear" hidden>키 지우기</button></div>
+    </div>
+    <div class="msg" id="aiMsg" aria-live="polite"></div>
   </div>
   <div class="card">
     <h2>업데이트 소식</h2>
@@ -281,7 +339,7 @@ details.more .dl{margin-top:10px}
 </div>
 
 <nav class="tabbar" aria-label="메뉴">
-  <button type="button" data-tab="fam"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.4-3.6 2.6-5.6 5.5-5.6s5.1 2 5.5 5.6"/><circle cx="17" cy="9.5" r="2.5"/><path d="M15.6 14.6c2.6-.4 4.6 1.4 4.9 4.6"/></svg><span>가족</span></button>
+  <button type="button" data-tab="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>내역</span></button>
   <button type="button" data-tab="home" class="tab-main" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10h17l-1.5 8.8a1.5 1.5 0 0 1-1.5 1.2h-11a1.5 1.5 0 0 1-1.5-1.2z"/><path d="M8.5 10l3-6M15.5 10l-3-6M9.5 14v2.5M14.5 14v2.5"/></svg><span>장바구니</span></button>
   <button type="button" data-tab="set"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>설정</span><span class="news-dot" id="newsDot" hidden></span></button>
 </nav>
@@ -309,6 +367,37 @@ details.more .dl{margin-top:10px}
   </form>
 </dialog>
 
+<!-- 영수증 내역 확인 · 고치기 -->
+<dialog id="recDlg">
+  <h2 id="recTitle">내역</h2>
+  <p id="recHint"></p>
+  <img id="recPhoto" alt="찍은 영수증" hidden>
+  <form class="dl" id="recForm" method="dialog">
+    <div>
+      <p>어디서</p>
+      <div class="wrapchips" id="recStores"></div>
+      <input class="field" id="recStoreName" type="text" maxlength="40" placeholder="가게 이름" aria-label="가게 이름" style="margin-top:8px">
+    </div>
+    <div class="two">
+      <label><span>언제</span><input class="field" id="recDate" type="date" required></label>
+      <label><span>낸 돈(원)</span><input class="field" id="recTotal" type="number" min="0" max="99999999" inputmode="numeric" required></label>
+    </div>
+    <div>
+      <p>산 것 <span id="recItemsNote"></span></p>
+      <div id="recItems"></div>
+      <button class="x" type="button" id="recItemAdd">산 것 한 줄 더하기</button>
+    </div>
+    <div class="dl-foot">
+      <button class="btn small danger" type="button" id="recDelete" hidden>지우기</button>
+      <div class="right">
+        <button class="btn small ghost" type="button" id="recCancel">닫기</button>
+        <button class="btn small" type="submit" id="recSave">저장</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+<dialog id="busyDlg"><p id="busyText" style="margin:0;color:var(--ink);font-size:16px">영수증을 읽는 중이에요.</p></dialog>
+
 <div class="toast" id="toast" hidden><span id="toastText"></span><button type="button" id="toastUndo" hidden>되돌리기</button></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -316,7 +405,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.2.0";
+const APP_VER = "1.3.0";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -357,13 +446,13 @@ function defaultStores(){ return [{ id: "daiso", name: "다이소", c: 0 }, { id
 function loadLocal(){
   try{
     const d = JSON.parse(lsGet(KEY) || "null");
-    if (d && Array.isArray(d.stores) && Array.isArray(d.items)){ if (!Array.isArray(d.dues)) d.dues = DUE_DEFAULT.slice(); return d; }
+    if (d && Array.isArray(d.stores) && Array.isArray(d.items)){ if (!Array.isArray(d.dues)) d.dues = DUE_DEFAULT.slice(); if (!Array.isArray(d.receipts)) d.receipts = []; return d; }
   }catch(e){}
-  return { stores: defaultStores(), items: [], dues: DUE_DEFAULT.slice() };
+  return { stores: defaultStores(), items: [], dues: DUE_DEFAULT.slice(), receipts: [] };
 }
-function saveLocal(){ if (!FAMILY) lsSet(KEY, JSON.stringify({ stores, items, dues })); }
+function saveLocal(){ if (!FAMILY) lsSet(KEY, JSON.stringify({ stores, items, dues, receipts })); }
 
-let { stores, items, dues } = loadLocal();
+let { stores, items, dues, receipts } = loadLocal();
 let ACCOUNT = { phase: "loading" }, FAMILY = null, REMOTE = null, pending = 0;
 let pickStore = lsGet(KEY_PICK) || "", pickDue = "", shop = null, editing = null;
 
@@ -464,7 +553,7 @@ function clearBought(){
 }
 
 /* ---------- 가게 ---------- */
-function saveStores(){ push(r => r.saveStores(stores)); render(); renderStoreRows(); }
+function saveStores(){ push(r => r.saveStores(stores)); render(); renderStoreRows(); renderLog(); }
 function addStore(name){
   name = name.trim().slice(0, 20); if (!name) return;
   if (stores.some(s => norm(s.name) === norm(name))){ toast("이미 있는 가게예요"); return; }
@@ -476,8 +565,11 @@ function addStore(name){
   saveStores();
 }
 function removeStore(id){
+  const goneStore = stores.find(s => s.id === id);
   stores = stores.filter(s => s.id !== id);
   items.filter(i => i.s === id).forEach(i => { i.s = ""; push(r => r.updateItem(i.id, { s: "" })); });
+  // 내역에는 지운 가게 이름을 글자로 남김
+  receipts.filter(x => x.s === id).forEach(x => { const f = { s: "", sn: goneStore ? goneStore.name : x.sn || "" }; Object.assign(x, f); push(r => r.updateReceipt(x.id, f)); });
   if (pickStore === id) setPick("");
   if (shop === id) shop = null;
   saveStores();
@@ -685,7 +777,7 @@ $("dueAdd").addEventListener("submit", e => {
 
 /* ---------- 가족 공간 창 ---------- */
 const inviteLink = () => FAMILY ? `${location.origin}${location.pathname}?join=${FAMILY.id}.${FAMILY.invite}` : "";
-function renderAccount(){ showConnState(); renderAcctBody(); }
+function renderAccount(){ showConnState(); renderAcctBody(); renderAi(); }
 function renderAcctBody(){
   const a = ACCOUNT || {}, body = $("acctBody");
   $("acctMsg").textContent = a.why || "";
@@ -705,7 +797,7 @@ function renderAcctBody(){
     armTwice($("wipeBtn"), "계정과 자료 모두 지우기", "한 번 더 누르면 모두 지워요", () => act(async () => {
       await window.FBAPP.deleteAccount();
       try{ Object.keys(localStorage).filter(k => /^tobuy-/.test(k)).forEach(k => localStorage.removeItem(k)); }catch(e){}
-      ({ stores, items, dues } = { stores: defaultStores(), items: [], dues: DUE_DEFAULT.slice() }); render();
+      ({ stores, items, dues, receipts } = { stores: defaultStores(), items: [], dues: DUE_DEFAULT.slice(), receipts: [] }); render(); renderLog();
     }, "계정과 자료를 모두 지웠어요."));
   } else if (a.phase === "nofamily"){
     $("acctTitle").textContent = "가족 공간 만들기";
@@ -741,12 +833,263 @@ $("acctBody").addEventListener("click", e => {
   if (!F){ $("acctMsg").textContent = "아직 연결되지 않았어요. 잠시 뒤에 다시 눌러 주세요."; return; }
   if (b.dataset.act === "login") act(() => F.login());
   else if (b.dataset.act === "logout") act(() => F.logout());
-  else if (b.dataset.act === "create") act(() => F.createFamily(($("famName").value || "").trim().slice(0, 20) || "우리 집 장보기", { stores, dues }, items));
+  else if (b.dataset.act === "create") act(() => F.createFamily(($("famName").value || "").trim().slice(0, 20) || "우리 집 장보기", { stores, dues }, items, receipts));
   else if (b.dataset.act === "copy") act(async () => { await navigator.clipboard.writeText(inviteLink()); }, "초대 링크를 복사했어요.");
+});
+
+/* ---------- 내역: 영수증으로 쌓는 장보기 기록 ---------- */
+const won = n => (Math.round(+n) || 0).toLocaleString("ko-KR") + "원";
+const recStore = r => r.s && stores.some(s => s.id === r.s) ? storeOf(r.s) : { id: "", name: r.sn || "기타", c: -1 };
+let logMonth = today().slice(0, 7);
+function shiftMonth(d){
+  const [y, m] = logMonth.split("-").map(Number), t = new Date(y, m - 1 + d, 1);
+  const next = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`;
+  if (next > today().slice(0, 7)) return;
+  logMonth = next; renderLog();
+}
+function renderLog(){
+  const [y, m] = logMonth.split("-").map(Number);
+  const list = receipts.filter(r => (r.date || "").startsWith(logMonth)).sort((a, b) => a.date === b.date ? (b.at || 0) - (a.at || 0) : (a.date < b.date ? 1 : -1));
+  const sum = list.reduce((a, r) => a + (+r.total || 0), 0);
+  $("monTitle").textContent = `${y}년 ${m}월`;
+  $("monNext").disabled = logMonth >= today().slice(0, 7);
+  $("monSum").textContent = won(sum);
+  $("monCount").textContent = list.length ? `${list.length}번 장봤어요` : "";
+  // 가게별로 얼마
+  const by = {};
+  list.forEach(r => { const s = recStore(r), k = s.id || "n:" + s.name; (by[k] = by[k] || { s, sum: 0 }).sum += (+r.total || 0); });
+  const groups = Object.values(by).sort((a, b) => b.sum - a.sum), max = groups.length ? groups[0].sum : 0;
+  $("monBars").innerHTML = groups.map(g => `<div class="bar" style="--c:${colorOf(g.s)}"><span class="bname">${esc(g.s.name)}</span><span class="track"><span class="fill" style="width:${max ? Math.max(3, Math.round(g.sum / max * 100)) : 0}%;display:block"></span></span><span class="amt">${won(g.sum)}</span></div>`).join("");
+  const all = receipts.reduce((a, r) => a + (+r.total || 0), 0);
+  $("allSum").textContent = receipts.length ? `지금까지 모두 ${won(all)} · ${receipts.length}번` : "";
+  $("recList").innerHTML = list.map(r => { const s = recStore(r), [, mm, dd] = r.date.split("-").map(Number), w = WEEK[new Date(r.date + "T00:00:00").getDay()], n = (r.items || []).length;
+    return `<li data-id="${esc(r.id)}"><button type="button" style="--c:${colorOf(s)}"><span class="rdate">${mm}/${dd}(${w})</span><span class="rstore">${esc(s.name)}${n ? `<small>${esc(r.items[0].n)}${n > 1 ? ` 외 ${n - 1}가지` : ""}</small>` : ""}</span><span class="ramt">${won(r.total)}</span></button></li>`; }).join("")
+    || `<li><div class="empty"><b>이 달에는 내역이 없어요</b>장보고 나서 영수증을 찍어 넣으면 어디서 얼마를 썼는지 쌓여요.</div></li>`;
+}
+$("monPrev").onclick = () => shiftMonth(-1);
+$("monNext").onclick = () => shiftMonth(1);
+$("recList").addEventListener("click", e => { const li = e.target.closest("li[data-id]"); if (li) openRec(receipts.find(r => r.id === li.dataset.id)); });
+
+/* 내역 창: 영수증을 읽은 뒤 확인할 때, 직접 적을 때, 적어 둔 것을 고칠 때 함께 씀 */
+let recEdit = null;
+function openRec(rec, photo){
+  const fresh = !rec || !rec.id;
+  recEdit = { id: fresh ? "" : rec.id, s: rec && rec.s && stores.some(x => x.id === rec.s) ? rec.s : "", scanned: !!photo };
+  if (fresh && !rec) recEdit.s = stores.some(x => x.id === pickStore) ? pickStore : "";
+  $("recTitle").textContent = photo ? "영수증과 같은지 봐 주세요" : fresh ? "내역 직접 적기" : "내역 고치기";
+  $("recHint").textContent = photo ? "AI가 읽은 내용이에요. 영수증과 다르면 고친 뒤 [확인했어요]를 눌러 주세요. 누르면 사진은 바로 버려요." : "";
+  $("recHint").hidden = !photo;
+  $("recPhoto").hidden = !photo; if (photo) $("recPhoto").src = photo; else $("recPhoto").removeAttribute("src");
+  $("recStoreName").value = rec && !recEdit.s ? (rec.sn || "") : "";
+  $("recDate").value = (rec && rec.date) || today(); $("recDate").max = today();
+  $("recTotal").value = rec && rec.total !== undefined ? rec.total : "";
+  $("recItems").innerHTML = ""; ((rec && rec.items) || []).forEach(i => addRecItem(i.n, i.p));
+  $("recSave").textContent = photo ? "확인했어요" : "저장";
+  $("recDelete").hidden = fresh;
+  if (!fresh) armTwice($("recDelete"), "지우기", "한 번 더 누르면 지워요", () => { removeReceipt(recEdit.id); closeRec(); });
+  drawRecStores(); recNote();
+  $("recDlg").showModal();
+}
+function drawRecStores(){
+  chipRow($("recStores"), stores.map(s => ({ v: s.id, label: s.name, c: colorOf(s) })).concat([{ v: "", label: "다른 곳", c: colorOf(ANY) }]), recEdit.s, v => { recEdit.s = v; drawRecStores(); });
+  $("recStoreName").hidden = recEdit.s !== "";
+}
+function addRecItem(n, p){
+  const row = document.createElement("div"); row.className = "irow";
+  row.innerHTML = `<input class="field iname" type="text" maxlength="40" placeholder="산 것" aria-label="산 것 이름"><input class="field iprice" type="number" min="0" inputmode="numeric" placeholder="원" aria-label="값"><button type="button" class="x idel">빼기</button>`;
+  row.querySelector(".iname").value = n || ""; row.querySelector(".iprice").value = p === undefined || p === null ? "" : p;
+  $("recItems").appendChild(row);
+}
+function readRecItems(){
+  return [...$("recItems").querySelectorAll(".irow")].map(r => ({ n: r.querySelector(".iname").value.trim().slice(0, 40), p: Math.round(+r.querySelector(".iprice").value) || 0 })).filter(i => i.n).slice(0, 60);
+}
+/* 적힌 물건값을 더한 값이 낸 돈과 다르면 알려 줌(할인·봉투값 때문에 다를 수 있어 막지는 않음) */
+function recNote(){
+  const its = readRecItems(), sum = its.reduce((a, i) => a + i.p, 0), total = Math.round(+$("recTotal").value) || 0;
+  $("recItemsNote").textContent = !its.length ? "(적지 않아도 돼요)" : sum === total ? `${its.length}가지 · 더하면 낸 돈과 같아요` : `${its.length}가지 · 더하면 ${won(sum)}`;
+}
+$("recItems").addEventListener("click", e => { if (e.target.closest(".idel")){ e.target.closest(".irow").remove(); recNote(); } });
+$("recItems").addEventListener("input", recNote);
+$("recTotal").addEventListener("input", recNote);
+$("recItemAdd").onclick = () => { addRecItem("", ""); const rows = $("recItems").querySelectorAll(".iname"); rows[rows.length - 1].focus(); recNote(); };
+/* 창을 닫으면 찍은 사진은 어디에도 남기지 않고 버림 */
+function closeRec(){ $("recPhoto").removeAttribute("src"); $("recPhoto").hidden = true; $("scanFile").value = ""; if ($("recDlg").open) $("recDlg").close(); }
+$("recDlg").addEventListener("close", () => { $("recPhoto").removeAttribute("src"); $("scanFile").value = ""; });
+$("recCancel").onclick = closeRec;
+$("recForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const date = $("recDate").value, total = Math.round(+$("recTotal").value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !(total >= 0) || $("recTotal").value === ""){ toast("날짜와 낸 돈을 적어 주세요"); return; }
+  const f = { date, total, s: recEdit.s, sn: recEdit.s ? "" : $("recStoreName").value.trim().slice(0, 40), items: readRecItems() };
+  if (recEdit.id){
+    const r = receipts.find(x => x.id === recEdit.id); if (r){ Object.assign(r, f); push(x => x.updateReceipt(r.id, f)); }
+  } else {
+    const u = me(), r = Object.assign({ id: nid(), at: Date.now(), by: u ? u.uid : "", byName: u ? u.name : "" }, f);
+    receipts.push(r); push(x => x.addReceipt(r));
+  }
+  logMonth = date.slice(0, 7);
+  const scanned = recEdit.scanned;
+  closeRec(); renderLog();
+  toast(scanned ? "내역에 넣고 사진은 버렸어요" : "내역에 넣었어요");
+});
+function removeReceipt(id){
+  const k = receipts.findIndex(r => r.id === id); if (k < 0) return;
+  receipts.splice(k, 1); push(r => r.deleteReceipt(id)); renderLog();
+}
+$("manualBtn").onclick = () => openRec(null);
+
+/* ---------- 영수증 읽기(AI) ----------
+   우리 가족(앱을 만든 사람의 가족 공간): 앱의 AI 그대로
+   다른 가족 공간: 앱의 AI로 AI_TRIAL 번 체험한 뒤 내 AI 키
+   내 AI 키를 넣었으면 늘 그 키로 (로그인하지 않아도 됨) */
+const AI_CFG = () => window.TOBUY_AI || {};
+const AI_MODELS_DEFAULT = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const KEY_AIKEY = "tobuy-aikey";
+const aiKey = () => FAMILY ? (FAMILY.aiKey || "") : (lsGet(KEY_AIKEY) || "");
+const aiTrial = () => +AI_CFG().trial || 0;
+const trialLeft = () => Math.max(0, aiTrial() - ((FAMILY && FAMILY.aiTrialUsed) || 0));
+function aiMode(){
+  if (DEMO) return "demo";
+  if (aiKey()) return "key";
+  if (!FAMILY) return "login";
+  if (!(window.FBAPP && window.FBAPP.aiReady)) return "off";
+  if (FAMILY.freeAI || !aiTrial()) return "builtin";
+  return trialLeft() > 0 ? "trial" : "need";
+}
+const AI_WHY = {
+  login: "영수증 읽기는 가족 공간에 들어가거나 내 AI 키를 넣으면 쓸 수 있어요. 지금은 [직접 적기]로 남길 수 있어요.",
+  off: "앱의 AI가 아직 연결되지 않았어요. 내 AI 키를 넣거나 [직접 적기]를 써 주세요.",
+  need: "무료 체험을 다 썼어요. 내 AI 키를 넣으면 계속 읽을 수 있어요."
+};
+function renderAi(){
+  const mode = aiMode(), k = aiKey();
+  $("aiState").textContent = mode === "key" ? `내 AI 키로 읽는 중이에요 (끝 네 글자 ${k.slice(-4)}).`
+    : mode === "builtin" ? "앱의 AI로 읽어요. 키를 넣지 않아도 돼요."
+    : mode === "trial" ? `무료 체험이 ${trialLeft()}번 남았어요. 다 쓰면 내 AI 키를 넣어 계속 쓸 수 있어요.`
+    : mode === "demo" ? "미리보기에서는 지어낸 영수증 내용으로 보여 줘요."
+    : AI_WHY[mode];
+  $("aiKeyBox").hidden = mode === "builtin" || mode === "demo";
+  $("aiKeyClear").hidden = !k;
+}
+function saveAiKey(k){
+  if (FAMILY){ FAMILY.aiKey = k; push(r => r.saveAiKey(k)); } else lsSet(KEY_AIKEY, k);
+  renderAi();
+}
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+$("aiKeyForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const k = $("aiKeyInput").value.trim(); if (!k) return;
+  $("aiMsg").textContent = "키를 확인하는 중이에요.";
+  try{
+    const r = await fetch(GEMINI_URL + "?pageSize=1", { headers: { "x-goog-api-key": k } });
+    if (!r.ok) throw new Error("bad");
+    saveAiKey(k); $("aiKeyInput").value = ""; $("aiMsg").textContent = ""; toast("AI 키를 저장했어요");
+  }catch(err){ $("aiMsg").textContent = "이 키로는 연결되지 않아요. 키를 다시 복사해 붙여 넣어 주세요."; }
+});
+armTwice($("aiKeyClear"), "키 지우기", "한 번 더 누르면 지워요", () => { saveAiKey(""); toast("AI 키를 지웠어요"); });
+
+const BADKEY_RE = /api.?key.*(not valid|invalid|expired)|API_KEY_INVALID|API_KEY_EXPIRED/i;
+const SKIP_RE = /quota|\b429\b|exhausted|rate.?limit|too many requests|high demand|overloaded|unavailable|try again later|\b50[034]\b|deadline|not found|\b404\b|not supported|unsupported|is not available|invalid model|^timeout/i;
+async function callKeyModel(name, parts, cfg, ms){
+  const body = { contents: [{ role: "user", parts: parts.map(p => typeof p === "string" ? { text: p } : p) }], generationConfig: cfg };
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+  try{
+    const r = await fetch(GEMINI_URL + encodeURIComponent(name) + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": aiKey() }, body: JSON.stringify(body), signal: ctl.signal });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(`[${r.status}] ${(j.error && j.error.status) || ""} ${(j.error && j.error.message) || r.statusText}`);
+    return ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter(x => !x.thought).map(x => x.text || "").join("");
+  }catch(e){
+    if (e && e.name === "AbortError") throw new Error("timeout: " + name);
+    throw e;
+  }finally{ clearTimeout(timer); }
+}
+function parseJSON(text){
+  const t = String(text || "").trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  for (const x of [t, a >= 0 && b > a ? t.slice(a, b + 1) : ""]){ if (!x) continue; try{ return JSON.parse(x); }catch(e){} }
+  throw new Error("AI가 알아볼 수 없는 답을 줬어요");
+}
+/* 앞의 모델이 붐비거나 없으면 다음 모델로 */
+async function askAI(parts){
+  const useKey = aiMode() === "key", cfg = { temperature: 0.1, responseMimeType: "application/json" };
+  const models = (Array.isArray(AI_CFG().models) && AI_CFG().models.length ? AI_CFG().models : AI_MODELS_DEFAULT);
+  let last;
+  for (const name of models){
+    try{ return parseJSON(useKey ? await callKeyModel(name, parts, cfg, 60000) : await window.FBAPP.aiBuiltin(name, parts, cfg, 60000)); }
+    catch(e){ last = e; const m = String((e && e.message) || e); if (BADKEY_RE.test(m) || !SKIP_RE.test(m)) throw e; }
+  }
+  throw last;
+}
+function aiErrorText(e){
+  const m = String((e && e.message) || e);
+  if (BADKEY_RE.test(m)) return "넣어 둔 AI 키가 맞지 않아요. 설정에서 다시 넣어 주세요.";
+  if (/quota|\b429\b|exhausted|rate.?limit/i.test(m)) return "AI 사용량이 잠깐 찼어요. 1~2분 뒤에 다시 해 주세요.";
+  if (/app.?check|attestation|recaptcha/i.test(m)) return "앱의 AI 연결(App Check)을 확인해 주세요.";
+  if (/^timeout/i.test(m)) return "AI가 답을 주지 않았어요. 다시 해 주세요.";
+  return "영수증을 읽지 못했어요. 다시 찍거나 [직접 적기]를 써 주세요.";
+}
+const RECEIPT_PROMPT = `이 사진은 한국의 가게 영수증입니다. 아래 JSON 한 개로만 답하세요.
+{"ok":true,"store":"가게 이름(영수증에 적힌 대로, 지점 이름 포함)","date":"YYYY-MM-DD","total":숫자,"items":[{"name":"산 것 이름","price":숫자}]}
+규칙:
+- total 은 할인·쿠폰을 뺀 뒤 실제로 낸 돈(원). 쉼표 없는 숫자.
+- price 는 그 물건에 낸 돈(수량을 곱하고 할인을 뺀 값). 수량이 2 이상이면 이름 뒤에 "x2"처럼 붙이기.
+- 물건은 영수증에 적힌 차례대로 60개까지. 봉투값도 물건으로 적기.
+- 날짜를 읽을 수 없으면 date 는 "".
+- 카드 번호, 승인 번호, 회원 번호, 전화번호는 적지 않기.
+- 영수증이 아니거나 읽을 수 없으면 {"ok":false} 만 답하기.`;
+/* 사진을 줄여서(긴 쪽 1600) 보내기 좋게 만듦 — 줄인 사진은 이 창 안에만 있다가 버려짐 */
+function shrinkPhoto(file){
+  return new Promise((ok, no) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); no(new Error("사진을 열지 못했어요")); };
+    img.src = url;
+  });
+}
+function cleanReceipt(o){
+  const num = v => Math.max(0, Math.round(+String(v === undefined || v === null ? "" : v).replace(/[^\d.-]/g, "")) || 0);
+  const name = String(o.store || "").trim().slice(0, 40);
+  const hit = stores.find(s => norm(name).includes(norm(s.name)));
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(o.date || "") && o.date <= today() ? o.date : today();
+  const its = (Array.isArray(o.items) ? o.items : []).map(i => ({ n: String((i && i.name) || "").trim().slice(0, 40), p: num(i && i.price) })).filter(i => i.n).slice(0, 60);
+  return { s: hit ? hit.id : "", sn: hit ? "" : name, date, total: num(o.total), items: its };
+}
+function demoReceipt(){
+  return { ok: true, store: "이마트 햇살점", date: today(), total: 23450, items: [{ name: "우유 900ml x2", price: 5960 }, { name: "계란 30구", price: 7990 }, { name: "대파", price: 2980 }, { name: "두부", price: 2500 }, { name: "삼겹살 300g", price: 3920 }, { name: "종이봉투", price: 100 }] };
+}
+$("scanBtn").onclick = () => {
+  const mode = aiMode();
+  if (AI_WHY[mode]){ toast(AI_WHY[mode]); if (mode !== "off" || !FAMILY) { setTab("set"); $("aiCard").scrollIntoView({ block: "start" }); } return; }
+  $("scanFile").value = ""; $("scanFile").click();
+};
+$("scanFile").addEventListener("change", async () => {
+  const file = $("scanFile").files && $("scanFile").files[0]; if (!file) return;
+  const mode = aiMode();
+  $("busyDlg").showModal();
+  let photo = "";
+  try{
+    photo = await shrinkPhoto(file);
+    const out = mode === "demo" ? await new Promise(r => setTimeout(() => r(demoReceipt()), 600))
+      : await askAI([RECEIPT_PROMPT, { inlineData: { data: photo.split(",")[1], mimeType: "image/jpeg" } }]);
+    $("busyDlg").close();
+    if (!out || out.ok === false){ photo = ""; $("scanFile").value = ""; toast("영수증으로 보이지 않아요. 다시 찍거나 [직접 적기]를 써 주세요."); return; }
+    if (mode === "trial"){ FAMILY.aiTrialUsed = (FAMILY.aiTrialUsed || 0) + 1; push(r => r.bumpTrial()); renderAi(); }
+    openRec(cleanReceipt(out), photo);
+  }catch(e){
+    if ($("busyDlg").open) $("busyDlg").close();
+    $("scanFile").value = ""; console.warn(e);
+    toast((e && /사진을 열지/.test(e.message)) ? e.message : aiErrorText(e));
+  }
 });
 
 /* ---------- 업데이트 소식 (굵직한 기능만) ---------- */
 const NEWS = [
+  {v:"1.3.0", d:"2026. 11. 14.", items:["내역이 생겼어요. 장보고 나서 영수증을 찍으면 어디서 · 언제 · 얼마를 썼는지 읽어서 달마다 쌓아 줘요. 사진은 읽고 나서 바로 버려요.", "아래 메뉴가 내역 · 장바구니 · 설정으로 바뀌었어요. 가족과 같이 쓰기는 설정 맨 위에 있어요."]},
   {v:"1.2.0", d:"2026. 11. 14.", items:["아래 메뉴가 생겼어요. 왼쪽부터 가족 · 장바구니 · 설정이에요.", "가게 고치기와 기한 단추 고치기는 설정으로 옮겼어요."]},
   {v:"1.1.0", d:"2026. 11. 14.", items:["\"언제\"에 [이번 주] 단추가 생겼고, 기한 단추를 더하거나 뺄 수 있어요(모레 · 토요일 · 다음 주 · 이번 달 · 며칠 뒤)."]},
   {v:"1.0.0", d:"2026. 11. 14.", items:["사야지! 첫 판: 가게별 장보기 메모, 기한과 급해요 안내, 여기서 장보기, 다시 담기, 가족과 같이 쓰기."]}
@@ -757,34 +1100,36 @@ function renderNews(){
   $("newsBody").innerHTML = NEWS.map(n => `<section class="news-item"><h3><span>${esc(n.v)}</span>${esc(n.d)}</h3><ul>${n.items.map(t => `<li>${esc(t)}</li>`).join("")}</ul></section>`).join("");
 }
 
-/* ---------- 아래 메뉴: 가족 · 장바구니 · 설정 ---------- */
-const VIEWS = { home: "viewHome", fam: "viewFam", set: "viewSet" };
+/* ---------- 아래 메뉴: 내역 · 장바구니 · 설정 ---------- */
+const VIEWS = { log: "viewLog", home: "viewHome", set: "viewSet" };
 function setTab(t){
   if (!VIEWS[t]) t = "home";
   document.body.dataset.tab = t;
   Object.keys(VIEWS).forEach(k => { $(VIEWS[k]).hidden = k !== t; });
   document.querySelectorAll(".tabbar button").forEach(b => { if (b.dataset.tab === t) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
-  if (t === "fam") renderAcctBody();
-  if (t === "set"){ renderStoreRows(); renderDueRows(); renderNews(); lsSet(NEWS_KEY, NEWS[0].v); markNews(); }
+  if (t === "log") renderLog();
+  if (t === "set"){ renderAcctBody(); renderAi(); renderStoreRows(); renderDueRows(); renderNews(); lsSet(NEWS_KEY, NEWS[0].v); markNews(); }
   window.scrollTo({ top: 0 });
 }
 document.querySelector(".tabbar").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) setTab(b.dataset.tab); });
-document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d && d.id !== "busyDlg") d.close(); }));
+$("busyDlg").addEventListener("cancel", e => e.preventDefault());
 
 /* ---------- 가족 공간 쪽(app-firebase.js · demo.js)과 주고받는 곳 ---------- */
 window.TOBUY = {
-  setAccount(info){ ACCOUNT = info; renderAccount(); if (info.phase === "out" && info.joining) setTab("fam"); },   // 초대받아 온 사람은 가족 탭부터
+  setAccount(info){ ACCOUNT = info; renderAccount(); if (info.phase === "out" && info.joining) setTab("set"); },   // 초대받아 온 사람은 설정의 가족 칸부터
   enterFamily(fam, remote){ FAMILY = fam; REMOTE = remote; ACCOUNT = Object.assign({}, ACCOUNT, { phase: "in", why: "" }); render(); renderAccount(); },
-  updateFamilyInfo(fam){ FAMILY = Object.assign({}, FAMILY, fam); renderAccount(); },
-  leaveFamily(){ if (!FAMILY) return; FAMILY = null; REMOTE = null; pending = 0; ({ stores, items, dues } = loadLocal()); shop = null; render(); renderAccount(); },
-  applyFamily(d){ if (!FAMILY) return; stores = Array.isArray(d.stores) ? d.stores.map(s => Object.assign({}, s)) : defaultStores(); dues = Array.isArray(d.dues) ? d.dues.slice() : DUE_DEFAULT.slice(); render(); if (document.body.dataset.tab === "set" && document.activeElement.tagName !== "INPUT"){ renderStoreRows(); renderDueRows(); } },
+  updateFamilyInfo(fam){ const typing = document.activeElement && document.activeElement.id === "aiKeyInput"; FAMILY = Object.assign({}, FAMILY, fam); showConnState(); renderAcctBody(); if (!typing) renderAi(); },
+  leaveFamily(){ if (!FAMILY) return; FAMILY = null; REMOTE = null; pending = 0; ({ stores, items, dues, receipts } = loadLocal()); shop = null; render(); renderLog(); renderAccount(); },
+  applyFamily(d){ if (!FAMILY) return; stores = Array.isArray(d.stores) ? d.stores.map(s => Object.assign({}, s)) : defaultStores(); dues = Array.isArray(d.dues) ? d.dues.slice() : DUE_DEFAULT.slice(); render(); renderLog(); if (document.body.dataset.tab === "set" && document.activeElement.tagName !== "INPUT"){ renderStoreRows(); renderDueRows(); } },
   applyItems(list){ if (!FAMILY) return; items = list; render(); },
+  applyReceipts(list){ if (!FAMILY) return; receipts = list; renderLog(); },
   showConnState,
   getLocal: () => loadLocal()
 };
 
 $("ver").textContent = "v" + APP_VER;
-render(); renderAccount(); markNews(); setTab("home");
+render(); renderLog(); renderAccount(); markNews(); setTab("home");
 /* 자정이 지나거나 다시 열었을 때 급한 물건을 새로 셈 */
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 

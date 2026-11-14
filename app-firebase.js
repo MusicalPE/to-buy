@@ -1,12 +1,14 @@
 /* 사야지! To-Buy — 파이어베이스 연결
    - 구글 로그인, 가족 공간(families/{id}) 하나를 가족이 함께 씀
-   - 가게 목록은 가족 공간 문서에, 물건은 한 줄씩(families/{id}/items/{물건}) 저장
+   - 가게 목록은 가족 공간 문서에, 물건은 한 줄씩(families/{id}/items/{물건}), 내역은 families/{id}/receipts/{내역} 에 저장
+   - 영수증 읽기: 앱의 AI(Firebase AI Logic + App Check). 사진은 저장하지 않고 읽을 때만 보냄
    - 인터넷이 끊겨도 이 기기에 두었다가 연결되면 올라감
    화면 쪽(index.html)과는 window.TOBUY 로 주고받음
    Made by 음악적체육인 */
 import { firebaseConfig } from "./firebase-config.js";
+import * as CFG from "./firebase-config.js";
 
-const V = "10.12.2";
+const V = "12.18.0";
 const SDK = `https://www.gstatic.com/firebasejs/${V}/`;
 const JOIN_KEY = "tobuy-join";
 const T = () => window.TOBUY;
@@ -42,6 +44,14 @@ const randomCode = (n = 10) => {
 /* 물건 한 줄에서 서버에 올릴 것만 고름 */
 const ITEM_KEYS = ["t", "s", "due", "done", "doneAt", "at", "by", "byName"];
 const pickItem = o => { const d = {}; ITEM_KEYS.forEach(k => { if (o[k] !== undefined) d[k] = o[k]; }); return d; };
+const REC_KEYS = ["date", "total", "s", "sn", "items", "at", "by", "byName"];
+const pickRec = o => { const d = {}; REC_KEYS.forEach(k => { if (o[k] !== undefined) d[k] = o[k]; }); return d; };
+const AI_TRIAL = +CFG.AI_TRIAL || 0, FREE_OWNERS = Array.isArray(CFG.FREE_OWNERS) ? CFG.FREE_OWNERS : [];
+window.TOBUY_AI = { models: CFG.AI_MODELS || [], trial: AI_TRIAL };
+async function sha256(t){
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
 
 if (!firebaseConfig || !firebaseConfig.apiKey){
   T().setAccount({ phase: "noconfig" });
@@ -57,6 +67,16 @@ async function start(){
     import(SDK + "firebase-app.js"), import(SDK + "firebase-auth.js"), import(SDK + "firebase-firestore.js")
   ]);
   const app = initializeApp(firebaseConfig);
+  /* App Check: 앱의 AI를 우리 앱 주소에서만 쓰게 막아 주는 장치. 사이트 키가 있을 때만 켬 */
+  let aiReady = false;
+  if (CFG.RECAPTCHA_SITE_KEY){
+    try{
+      const AC = await import(SDK + "firebase-app-check.js");
+      AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(CFG.RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true });
+      aiReady = true;
+    }catch(e){ console.warn("App Check 를 켜지 못했어요", e); }
+  }
+  let aiLib = null;
   const auth = A.getAuth(app);
   let db;
   try{
@@ -67,6 +87,16 @@ async function start(){
   const stop = () => { unsubs.forEach(u => { try{ u(); }catch(e){} }); unsubs = []; fid = null; };
 
   window.FBAPP = {
+    aiReady,
+    /* 앱의 AI(Firebase AI Logic)로 한 번 묻기 → 답 글자 */
+    async aiBuiltin(name, parts, cfg, ms){
+      if (!aiReady) throw new Error("앱의 AI가 아직 연결되지 않았어요");
+      if (!aiLib){ const L = await import(SDK + "firebase-ai.js"); aiLib = { L, ai: L.getAI(app, { backend: new L.GoogleAIBackend() }) }; }
+      const model = aiLib.L.getGenerativeModel(aiLib.ai, { model: name, generationConfig: cfg });
+      let timer;
+      const res = await Promise.race([model.generateContent(parts), new Promise((_, no) => { timer = setTimeout(() => no(new Error("timeout: " + name)), ms); })]).finally(() => clearTimeout(timer));
+      return res.response.text();
+    },
     async login(){
       const p = new A.GoogleAuthProvider();
       p.setCustomParameters({ prompt: "select_account" });
@@ -101,7 +131,7 @@ async function start(){
       }
     },
     /* 가족 공간 만들기: 이 기기에 적어 둔 가게와 물건을 그대로 올림 */
-    async createFamily(name, data, localItems){
+    async createFamily(name, data, localItems, localReceipts){
       if (!me) throw new Error("먼저 로그인해 주세요.");
       const fref = F.doc(F.collection(db, "families"));
       await F.setDoc(fref, {
@@ -114,6 +144,12 @@ async function start(){
       while (list.length){
         const batch = F.writeBatch(db);
         list.splice(0, 400).forEach(it => batch.set(F.doc(fref, "items", it.id), Object.assign(pickItem(it), { by: it.by || me.uid, byName: it.byName || me.name })));
+        await batch.commit().catch(e => { throw friendly(e); });
+      }
+      const recs = (localReceipts || []).slice();
+      while (recs.length){
+        const batch = F.writeBatch(db);
+        recs.splice(0, 300).forEach(r => batch.set(F.doc(fref, "receipts", r.id), Object.assign(pickRec(r), { by: r.by || me.uid, byName: r.byName || me.name })));
         await batch.commit().catch(e => { throw friendly(e); });
       }
       await F.setDoc(F.doc(db, "users", me.uid), { family: fref.id }, { merge: true });
@@ -135,6 +171,8 @@ async function start(){
     }
     const all = await F.getDocs(F.collection(fref, "items"));
     for (const x of all.docs){ await F.deleteDoc(x.ref); }
+    const recs = await F.getDocs(F.collection(fref, "receipts"));
+    for (const x of recs.docs){ await F.deleteDoc(x.ref); }
     await F.deleteDoc(fref).catch(e => { throw friendly(e); });
   }
 
@@ -153,29 +191,41 @@ async function start(){
   function famInfo(id, d){
     return {
       id, name: d.name || "우리 집 장보기", invite: d.invite,
+      freeAI: !!d.freeAI, aiKey: d.aiKey || "", aiTrialUsed: d.aiTrialUsed || 0,
       members: (d.members || []).map(u => ({ uid: u, name: (d.memberInfo && d.memberInfo[u] && d.memberInfo[u].name) || "가족" }))
     };
   }
 
   function enter(id){
     stop(); fid = id;
-    const fref = F.doc(db, "families", id), col = F.collection(fref, "items");
+    const fref = F.doc(db, "families", id), col = F.collection(fref, "items"), rcol = F.collection(fref, "receipts");
     const gone = e => { if (e && e.code === "not-found") return; throw friendly(e); };   // 가족이 먼저 지운 물건은 그냥 넘어감
     const remote = {
       saveStores: stores => F.updateDoc(fref, { stores, updatedBy: me.uid, updatedAt: F.serverTimestamp() }).catch(e => { throw friendly(e); }),
       saveDues: dues => F.updateDoc(fref, { dues, updatedBy: me.uid, updatedAt: F.serverTimestamp() }).catch(e => { throw friendly(e); }),
       addItem: it => F.setDoc(F.doc(col, it.id), pickItem(it)).catch(e => { throw friendly(e); }),
       updateItem: (iid, fields) => F.updateDoc(F.doc(col, iid), pickItem(fields)).catch(gone),
-      deleteItem: iid => F.deleteDoc(F.doc(col, iid)).catch(gone)
+      deleteItem: iid => F.deleteDoc(F.doc(col, iid)).catch(gone),
+      addReceipt: r => F.setDoc(F.doc(rcol, r.id), pickRec(r)).catch(e => { throw friendly(e); }),
+      updateReceipt: (rid, fields) => F.updateDoc(F.doc(rcol, rid), pickRec(fields)).catch(gone),
+      deleteReceipt: rid => F.deleteDoc(F.doc(rcol, rid)).catch(gone),
+      saveAiKey: k => F.updateDoc(fref, { aiKey: k }).catch(e => { throw friendly(e); }),
+      bumpTrial: () => F.updateDoc(fref, { aiTrialUsed: F.increment(1) }).catch(e => { throw friendly(e); })
     };
-    let entered = false, held = null;
+    let entered = false, held = null, heldRecs = null, askedFree = false;
     unsubs.push(F.onSnapshot(fref, { includeMetadataChanges: true }, snap => {
       if (!snap.exists()){ leave("가족 공간이 없어졌어요."); return; }
       const d = snap.data();
       if (!entered){
         entered = true; T().enterFamily(famInfo(id, d), remote);
         if (held){ T().applyItems(held); held = null; }
+        if (heldRecs){ T().applyReceipts(heldRecs); heldRecs = null; }
       } else T().updateFamilyInfo(famInfo(id, d));
+      /* 앱을 만든 사람이 만든 가족 공간은 "앱의 AI 그대로" 표시 (초대받은 가족도 같이) */
+      if (!askedFree && AI_TRIAL && FREE_OWNERS.length && d.owner === me.uid && !d.freeAI){
+        askedFree = true;
+        sha256(String(me.email || "").trim().toLowerCase()).then(h => { if (FREE_OWNERS.includes(h)) return F.updateDoc(fref, { freeAI: true }); }).catch(() => {});
+      }
       T().applyFamily(d);
       T().showConnState();
     }, err => {
@@ -185,6 +235,10 @@ async function start(){
     unsubs.push(F.onSnapshot(col, qs => {
       const list = qs.docs.map(x => Object.assign({}, x.data(), { id: x.id }));
       if (entered) T().applyItems(list); else held = list;
+    }, () => {}));
+    unsubs.push(F.onSnapshot(rcol, qs => {
+      const list = qs.docs.map(x => Object.assign({}, x.data(), { id: x.id }));
+      if (entered) T().applyReceipts(list); else heldRecs = list;
     }, () => {}));
   }
 

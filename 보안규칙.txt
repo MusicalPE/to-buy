@@ -42,6 +42,19 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['t', 's', 'due', 'done', 'doneAt', 'at', 'by', 'byName'])
           && request.resource.data.t is string && request.resource.data.t.size() > 0 && request.resource.data.t.size() <= 80;
       }
+
+      // 장보기 내역(영수증에서 읽은 내용): 가족만 읽고 씀. 사진은 저장하지 않음
+      match /receipts/{rid} {
+        function inFamily() {
+          return signedIn() && request.auth.uid in get(/databases/$(database)/documents/families/$(fid)).data.members;
+        }
+        allow read, delete: if inFamily();
+        allow create, update: if inFamily()
+          && request.resource.data.keys().hasOnly(['date', 'total', 's', 'sn', 'items', 'at', 'by', 'byName'])
+          && request.resource.data.date is string && request.resource.data.date.size() == 10
+          && request.resource.data.total is number && request.resource.data.total >= 0
+          && request.resource.data.items is list && request.resource.data.items.size() <= 60;
+      }
     }
   }
 }

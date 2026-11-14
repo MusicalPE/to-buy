@@ -35,7 +35,7 @@ const items = [
   item("두부", "emart", "", ME, true)
 ];
 const ok = () => Promise.resolve();
-const remote = { saveStores: ok, saveDues: ok, addItem: ok, updateItem: ok, deleteItem: ok };
+const remote = { addReceipt: ok, updateReceipt: ok, deleteReceipt: ok, saveAiKey: ok, bumpTrial: ok, saveStores: ok, saveDues: ok, addItem: ok, updateItem: ok, deleteItem: ok };
 const fam = { id: "demo", name: "햇살이네 장보기", invite: "demo", members: [ME, DAD] };
 
 window.FBAPP = {
@@ -48,3 +48,14 @@ T().setAccount({ phase: "loading", user: ME });
 T().enterFamily(fam, remote);
 T().applyFamily({ stores });
 T().applyItems(items);
+/* 지어낸 장보기 내역: 이번 달과 지난달 */
+const rec = (n, s, sn, total, its) => ({ id: "demor" + n + s + total, date: day(n), s, sn, total, at: now + n, by: ME.uid, byName: ME.name, items: its.map(([a, b]) => ({ n: a, p: b })) });
+T().applyReceipts([
+  rec(-1, "emart", "", 48200, [["삼겹살 600g", 17800], ["쌈채소", 3980], ["우유 900ml x2", 5960], ["계란 30구", 7990], ["과자", 4480], ["맥주 6캔", 7990]]),
+  rec(-3, "daiso", "", 9000, [["수납 바구니 x2", 4000], ["건전지 AA", 2000], ["지퍼백", 3000]]),
+  rec(-6, "", "동네 과일가게", 15000, [["귤 한 상자", 15000]]),
+  rec(-9, "emart", "", 31750, [["쌀 4kg", 15900], ["두부 x2", 5000], ["대파", 2980], ["요거트", 7870]]),
+  rec(-12, "pharm", "", 6500, [["밴드", 3000], ["소독약", 3500]]),
+  rec(-33, "emart", "", 52300, []),
+  rec(-40, "daiso", "", 7000, [])
+]);
