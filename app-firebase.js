@@ -67,16 +67,22 @@ async function start(){
     import(SDK + "firebase-app.js"), import(SDK + "firebase-auth.js"), import(SDK + "firebase-firestore.js")
   ]);
   const app = initializeApp(firebaseConfig);
-  /* App Check: 앱의 AI를 우리 앱 주소에서만 쓰게 막아 주는 장치. 사이트 키가 있을 때만 켬 */
-  let aiReady = false;
-  if (CFG.RECAPTCHA_SITE_KEY){
-    try{
-      const AC = await import(SDK + "firebase-app-check.js");
-      AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(CFG.RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true });
-      aiReady = true;
-    }catch(e){ console.warn("App Check 를 켜지 못했어요", e); }
+  /* App Check: 앱의 AI를 우리 앱 주소에서만 쓰게 막아 주는 장치.
+     로그인과 목록 불러오기를 늦추지 않도록, 영수증을 처음 읽을 때에만 켬 */
+  const aiReady = !!CFG.RECAPTCHA_SITE_KEY;
+  let appCheckOn = false;
+  async function ensureAppCheck(){
+    if (appCheckOn) return;
+    const AC = await import(SDK + "firebase-app-check.js");
+    AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(CFG.RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled: true });
+    appCheckOn = true;
   }
   let aiLib = null;
+  /* 내가 들어 있는 가족 공간을 이 기기에 적어 둠 → 다음에 열 때 서버 답을 기다리지 않고 바로 들어감 */
+  const hintKey = uid => "tobuy-fam-" + uid;
+  const getHint = uid => { try{ return localStorage.getItem(hintKey(uid)); }catch(e){ return null; } };
+  const setHint = (uid, id) => { try{ if (id) localStorage.setItem(hintKey(uid), id); else localStorage.removeItem(hintKey(uid)); }catch(e){} };
+  const withTimeout = (p, ms) => { let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error("timeout")), ms); })]).finally(() => clearTimeout(t)); };
   const auth = A.getAuth(app);
   let db;
   try{
@@ -91,6 +97,7 @@ async function start(){
     /* 앱의 AI(Firebase AI Logic)로 한 번 묻기 → 답 글자 */
     async aiBuiltin(name, parts, cfg, ms){
       if (!aiReady) throw new Error("앱의 AI가 아직 연결되지 않았어요");
+      await ensureAppCheck();
       if (!aiLib){ const L = await import(SDK + "firebase-ai.js"); aiLib = { L, ai: L.getAI(app, { backend: new L.GoogleAIBackend() }) }; }
       const model = aiLib.L.getGenerativeModel(aiLib.ai, { model: name, generationConfig: cfg });
       let timer;
@@ -112,12 +119,14 @@ async function start(){
       if (!me || !fid) return;
       await leaveOrWipe(fid);
       await F.setDoc(F.doc(db, "users", me.uid), { family: F.deleteField() }, { merge: true });
+      setHint(me.uid, null);
       stop(); T().leaveFamily(); T().setAccount({ phase: "nofamily", user: me });
     },
     /* 계정과 자료 모두 지우기 */
     async deleteAccount(){
       if (!me) throw new Error("먼저 로그인해 주세요.");
       if (fid) await leaveOrWipe(fid);
+      setHint(me.uid, null);
       stop();
       try{ await F.deleteDoc(F.doc(db, "users", me.uid)); }catch(e){}
       const u = auth.currentUser;
@@ -197,7 +206,7 @@ async function start(){
   }
 
   function enter(id){
-    stop(); fid = id;
+    stop(); fid = id; setHint(me.uid, id);
     const fref = F.doc(db, "families", id), col = F.collection(fref, "items"), rcol = F.collection(fref, "receipts");
     const gone = e => { if (e && e.code === "not-found") return; throw friendly(e); };   // 가족이 먼저 지운 물건은 그냥 넘어감
     const remote = {
@@ -243,6 +252,7 @@ async function start(){
   }
 
   async function leave(why){
+    if (me) setHint(me.uid, null);
     stop();
     T().leaveFamily();
     if (me){
@@ -268,12 +278,27 @@ async function start(){
       catch(e){ console.warn(e); window.toast && window.toast("초대 링크로 들어가지 못했어요. 가족에게 새 QR을 받아 주세요."); }
       clearJoin();
     }
-    let famId = null;
+    const uref = F.doc(db, "users", me.uid), uid = me.uid;
+    /* 전에 들어갔던 가족 공간이 적혀 있으면 바로 들어가고, 서버에는 뒤에서 조용히 맞는지 물어봄 */
+    const hint = getHint(uid);
+    if (hint){
+      enter(hint);
+      F.getDoc(uref).then(u => {
+        if (!me || me.uid !== uid) return;
+        const real = u.exists() ? u.data().family : null;
+        if (real && real !== fid) enter(real);
+        else if (!real && fid === hint) leave("");
+      }).catch(() => {});
+      return;
+    }
+    let famId = null, failed = false;
     try{
-      const u = await F.getDoc(F.doc(db, "users", me.uid));
+      const u = await withTimeout(F.getDoc(uref), 15000);
       famId = u.exists() ? u.data().family : null;
-    }catch(e){ console.warn(e); }
+    }catch(e){ console.warn(e); failed = true; }
+    if (!me || me.uid !== uid) return;
     if (famId) enter(famId);
+    else if (failed) T().setAccount({ phase: "slow", user: me });      // 답이 없을 때 '가족 공간 없음'으로 넘기면 가족 공간을 또 만들게 되므로 따로 알림
     else T().setAccount({ phase: "nofamily", user: me });
   });
 }

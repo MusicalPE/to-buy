@@ -90,6 +90,10 @@ check(/가족 공간 만들기/.test(await p.textContent("#acctTitle")), "나간
 await tab("home");
 check(await p.locator('li:has-text("이 기기 물건")').count() === 1 && !/동네마트/.test(await p.textContent("#addStores")), "나간 뒤 이 기기 목록으로 안 돌아옴");
 check(/이 기기에 저장/.test(await p.textContent("#conn")), "나간 뒤 저장 상태 글이 안 바뀜");
+// 서버 답이 없을 때: '가족 공간 만들기'로 넘기지 않고 다시 불러오기 안내
+await p.evaluate(() => TOBUY.setAccount({ phase: "slow", user: { uid: "u", name: "테스트" } }));
+await tab("set");
+check(/불러오지 못했어요/.test(await p.textContent("#acctBody")) && await p.locator('[data-act="reload"]').count() === 1 && await p.locator('[data-act="create"]').count() === 0, "서버 답이 없을 때 다시 불러오기 안내가 안 나옴");
 // 초대받아 온 사람: 로그인 창이 먼저 뜸
 await p.evaluate(() => TOBUY.setAccount({ phase: "out", joining: true }));
 check(await p.locator("#viewSet").isVisible() && /초대를 받았어요/.test(await p.textContent("#acctBody")), "초대 링크로 왔을 때 설정의 로그인 안내가 안 뜸");

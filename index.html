@@ -405,7 +405,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.3.1";
+const APP_VER = "1.3.2";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -811,7 +811,12 @@ function renderAcctBody(){
       <div class="dl"><button class="btn" type="button" data-act="login">구글로 로그인</button></div>`;
   } else if (a.phase === "loading"){
     $("acctTitle").textContent = "가족과 같이 쓰기";
-    body.innerHTML = `<p>불러오는 중이에요.</p>`;
+    body.innerHTML = `<p>불러오는 중이에요. 오래 걸리면 인터넷 연결을 확인해 주세요.</p>`;
+  } else if (a.phase === "slow"){
+    $("acctTitle").textContent = "가족과 같이 쓰기";
+    body.innerHTML = `<p>${esc(a.user ? a.user.name : "")} 님으로 로그인했지만 가족 공간을 불러오지 못했어요. 인터넷 연결을 확인한 뒤 다시 불러와 주세요. 그동안 이 기기의 목록은 그대로 쓸 수 있어요.</p>
+      <div class="dl"><button class="btn" type="button" data-act="reload">다시 불러오기</button>
+      <button class="btn small ghost" type="button" data-act="logout">로그아웃</button></div>`;
   } else {
     $("acctTitle").textContent = "이 기기에서 쓰는 중";
     body.innerHTML = `<p>목록은 지금 이 기기에만 저장돼요. 가족과 같이 쓰는 기능은 아직 연결되지 않았어요.</p>`;
@@ -829,6 +834,7 @@ async function act(fn, okMsg){
 }
 $("acctBody").addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
+  if (b.dataset.act === "reload"){ location.reload(); return; }
   const F = window.FBAPP;
   if (!F){ $("acctMsg").textContent = "아직 연결되지 않았어요. 잠시 뒤에 다시 눌러 주세요."; return; }
   if (b.dataset.act === "login") act(() => F.login());
