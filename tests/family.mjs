@@ -25,7 +25,7 @@ await p.evaluate(() => {
   TOBUY.applyItems([{ id: "a1", t: "가족이 적은 두부", s: "mart", due: "", done: false, at: 1, by: "v", byName: "가족" },
     { id: "a2", t: "내가 적은 콩나물", s: "mart", due: "", done: false, at: 2, by: "u", byName: "테스트" }]);
 });
-check(/햇살이네 · 2명/.test(await p.textContent("#acctBtn")), "가족 이름·인원 표시 이상: " + await p.textContent("#acctBtn"));
+check(await p.textContent("#acctBtn") === "햇살이네" && /가족 2명/.test(await p.textContent("#conn")), "가족 이름·인원 표시 이상: " + await p.textContent("#acctBtn") + " / " + await p.textContent("#conn"));
 check(await p.locator('li:has-text("이 기기 물건")').count() === 0, "가족 공간에 들어갔는데 이 기기 목록이 섞여 보임");
 check(await p.locator('li:has-text("두부") .by').count() === 1 && await p.locator('li:has-text("콩나물") .by').count() === 0, "누가 적었는지 표시가 이상함(가족 것에만 붙어야)");
 check(/동네마트/.test(await p.textContent("#addStores")), "가족이 바꾼 가게가 화면에 안 옴");

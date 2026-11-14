@@ -55,15 +55,18 @@ input,select{font:inherit;color:var(--ink)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* 머리 */
-.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
-.brand{min-width:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.status{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:-6px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-text{min-width:0}
+.logo{width:clamp(64px,19vw,104px);height:auto;aspect-ratio:1;flex:none;border-radius:20%;object-fit:cover;box-shadow:0 4px 12px rgba(42,40,36,.14)}
 .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
-h1{font-family:var(--f-display);font-weight:400;font-size:clamp(38px,11vw,52px);line-height:1;margin:2px 0 0;color:var(--accent)}
-.tally{font-size:13px;color:var(--muted);margin-top:6px}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,8.6vw,46px);line-height:1;margin:2px 0 0;color:var(--accent);white-space:nowrap}
+.tally{font-size:13px;color:var(--muted)}
 .tally b{color:var(--ink)}
 .acct{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
-.acct-btn{border:1.5px solid var(--ink);background:var(--paper);border-radius:99px;padding:8px 14px;font-size:13px;font-weight:700;max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.conn{font-size:11px;color:var(--muted)}
+.acct-btn{border:1.5px solid var(--ink);background:var(--paper);border-radius:99px;padding:8px 14px;font-size:13px;font-weight:700;max-width:38vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conn{font-size:11px;color:var(--muted);text-align:right}
 
 /* 적는 칸 */
 .add{background:var(--paper);border:1.5px solid var(--ink);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
@@ -167,15 +170,18 @@ details.more .dl{margin-top:10px}
 
 <div class="top">
   <div class="brand">
-    <div class="eyebrow">To-Buy</div>
-    <h1>사야지!</h1>
-    <div class="tally" id="tally"></div>
+    <img class="logo" src="logo.png" alt="사야지! 로고" width="104" height="104">
+    <div class="brand-text">
+      <div class="eyebrow">To-Buy</div>
+      <h1>사야지!</h1>
+    </div>
   </div>
   <div class="acct">
     <button class="acct-btn" id="acctBtn" type="button">가족과 같이 쓰기</button>
-    <span class="conn" id="conn"></span>
   </div>
 </div>
+
+<div class="status"><span class="tally" id="tally"></span><span class="conn" id="conn"></span></div>
 
 <form class="add" id="addForm" autocomplete="off">
   <div class="add-row">
@@ -262,7 +268,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.0.0";
+const APP_VER = "1.0.1";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -327,6 +333,7 @@ function showConnState(){
   let t = "이 기기에 저장";
   if (FAMILY) t = !navigator.onLine ? "오프라인 · 연결되면 올라가요" : pending > 0 ? "올리는 중" : "가족과 맞춰졌어요";
   if (DEMO) t = "미리보기";
+  if (FAMILY) t = `가족 ${FAMILY.members.length}명 · ${t}`;
   $("conn").textContent = t;
 }
 window.addEventListener("online", showConnState);
@@ -592,7 +599,7 @@ $("storeClose").onclick = () => $("storeDlg").close();
 const inviteLink = () => FAMILY ? `${location.origin}${location.pathname}?join=${FAMILY.id}.${FAMILY.invite}` : "";
 function renderAccount(){
   const a = ACCOUNT || {}, b = $("acctBtn");
-  b.textContent = a.phase === "in" && FAMILY ? `${FAMILY.name} · ${FAMILY.members.length}명`
+  b.textContent = a.phase === "in" && FAMILY ? FAMILY.name
     : a.phase === "nofamily" ? "가족 공간 만들기" : a.phase === "loading" ? "불러오는 중" : a.phase === "noconfig" ? "이 기기에서 쓰는 중" : "가족과 같이 쓰기";
   showConnState();
   if ($("acctDlg").open) renderAcctBody();
