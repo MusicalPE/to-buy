@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "사야지! To-Buy",
+  "short_name": "사야지!",
+  "description": "가족이 함께 쓰는 가게별 장보기 메모",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F1E6",
+  "theme_color": "#E0452F",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
