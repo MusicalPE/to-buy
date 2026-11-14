@@ -82,6 +82,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,8.6vw,46px)
 .pick .chip input[type=date]{max-width:118px}
 .chip{flex:none;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:transparent;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
 .chip[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);background:var(--bg)}
+.chip-edit{flex:none;border:1.5px dashed var(--line);background:transparent;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
 .dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--c,var(--muted))}
 .chip input[type=date]{border:0;background:transparent;font-size:13px;font-weight:700;color:inherit;padding:0;max-width:128px}
 
@@ -283,7 +284,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.1.0";
+const APP_VER = "1.1.1";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -474,6 +475,14 @@ function renderAdd(){
   if (shop !== null) pickStore = shop;
   chipRow($("addStores"), storeChoices(), pickStore, v => { setPick(v); if (shop !== null) shop = v; render(); }, "어디서");
   dueRow($("addDue"), pickDue, v => { pickDue = v; renderAdd(); }, "언제");
+  editChip($("addStores"), "가게 고치기", openStores);
+  editChip($("addDue"), "단추 고치기", openDues);
+}
+/* 고르는 줄 끝에 붙는 '고치기' — 가게나 기한 단추를 더하고 빼는 창을 엶 */
+function editChip(box, label, fn){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "chip-edit"; b.textContent = label; b.onclick = fn;
+  box.appendChild(b);
 }
 function sortItems(a, b){
   const ua = isUrgent(a), ub = isUrgent(b);
@@ -627,7 +636,8 @@ $("storeRows").addEventListener("change", e => {
   if (s && name && name !== s.name){ s.name = name; saveStores(); } else if (s) e.target.value = s.name;
 });
 $("storeAdd").addEventListener("submit", e => { e.preventDefault(); addStore($("storeNew").value); $("storeNew").value = ""; });
-$("storesBtn").onclick = () => { renderStoreRows(); $("storeDlg").showModal(); };
+function openStores(){ renderStoreRows(); $("storeDlg").showModal(); }
+$("storesBtn").onclick = openStores;
 $("storeClose").onclick = () => $("storeDlg").close();
 
 /* ---------- 기한 단추 고치기 창 ---------- */
@@ -651,7 +661,8 @@ $("dueAdd").addEventListener("submit", e => {
   if (!dues.includes(id)) dues = dues.concat([id]);
   saveDues();
 });
-$("dueBtn").onclick = () => { renderDueRows(); $("dueDlg").showModal(); };
+function openDues(){ renderDueRows(); $("dueDlg").showModal(); }
+$("dueBtn").onclick = openDues;
 $("dueClose").onclick = () => $("dueDlg").close();
 
 /* ---------- 가족 공간 창 ---------- */

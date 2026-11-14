@@ -58,8 +58,9 @@ await p.click("#itemDelete"); check(await p.locator("#itemDlg").evaluate(d => d.
 await p.click("#itemDelete");
 check(await p.locator('li:has-text("지퍼백")').count() === 0, "지우기가 안 됨");
 
-// 가게 고치기: 더하기 · 이름 · 색 · 순서 · 지우기
-await p.click("#storesBtn"); await p.fill("#storeNew", "약국"); await p.click("#storeAdd button");
+// 가게 고치기: 더하기 · 이름 · 색 · 순서 · 지우기 (적는 칸의 '가게 고치기'로도 열림)
+await p.click("#addDue .chip-edit"); check(await p.locator("#dueDlg").evaluate(d => d.open), "적는 칸의 '단추 고치기'가 안 열림"); await p.click("#dueClose");
+await p.click("#addStores .chip-edit"); await p.fill("#storeNew", "약국"); await p.click("#storeAdd button");
 check(await p.locator("#storeRows .srow").count() === 3, "가게 더하기가 안 됨");
 await p.locator("#storeRows .srow >> nth=2 >> input").fill("동네 약국"); await p.locator("#storeRows .srow >> nth=2 >> input").blur();
 await p.locator("#storeRows .srow >> nth=2 >> .swatch").click();
