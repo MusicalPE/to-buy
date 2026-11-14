@@ -5,9 +5,11 @@ await p.goto(PAGE); await p.waitForTimeout(500);
 const rows = sel => p.locator(sel).allTextContents();
 const store = name => p.locator(`.store:has(h2:text-matches("^${name}"))`);
 const add = async t => { await p.fill("#addText", t); await p.click("#addForm button[type=submit]"); };
+const tab = t => p.click(`.tabbar button[data-tab="${t}"]`);
 const pickStore = name => p.locator(`#addStores .chip:has-text("${name}")`).click();
 
-check(/이 기기/.test(await p.textContent("#acctBtn")), "파이어베이스 설정이 비었을 때 '이 기기에서 쓰는 중'이 안 나옴");
+check(/이 기기에 저장/.test(await p.textContent("#conn")), "파이어베이스 설정이 비었을 때 '이 기기에 저장'이 안 나옴");
+check(await p.locator("#viewHome").isVisible() && await p.locator("#viewFam").isHidden() && await p.locator("#viewSet").isHidden(), "처음에 장바구니 탭이 아님");
 check((await rows("#addStores .chip")).join("|") === "다이소|이마트|아무 데서나", "기본 가게가 다이소·이마트·아무 데서나가 아님");
 check(await p.locator(".empty").count() === 1, "처음에 빈 안내가 안 나옴");
 
@@ -58,19 +60,23 @@ await p.click("#itemDelete"); check(await p.locator("#itemDlg").evaluate(d => d.
 await p.click("#itemDelete");
 check(await p.locator('li:has-text("지퍼백")').count() === 0, "지우기가 안 됨");
 
-// 가게 고치기: 더하기 · 이름 · 색 · 순서 · 지우기 (적는 칸의 '가게 고치기'로도 열림)
-await p.click("#addDue .chip-edit"); check(await p.locator("#dueDlg").evaluate(d => d.open), "적는 칸의 '단추 고치기'가 안 열림"); await p.click("#dueClose");
-await p.click("#addStores .chip-edit"); await p.fill("#storeNew", "약국"); await p.click("#storeAdd button");
+// 설정 탭 — 가게 고치기: 더하기 · 이름 · 색 · 순서 · 지우기
+await tab("set");
+check(await p.locator("#viewSet").isVisible() && await p.locator("#viewHome").isHidden() && await p.locator('.tabbar button[data-tab="set"]').getAttribute("aria-current") === "page", "설정 탭으로 안 바뀜");
+check(await p.locator("#newsBody .news-item").count() >= 1 && await p.locator("#newsDot").isHidden(), "업데이트 소식이 안 나오거나, 본 뒤에도 점이 남음");
+check(/v\d+\.\d+\.\d+/.test(await p.textContent("#ver")), "설정에 판 번호가 안 나옴"); await p.fill("#storeNew", "약국"); await p.click("#storeAdd button");
 check(await p.locator("#storeRows .srow").count() === 3, "가게 더하기가 안 됨");
 await p.locator("#storeRows .srow >> nth=2 >> input").fill("동네 약국"); await p.locator("#storeRows .srow >> nth=2 >> input").blur();
 await p.locator("#storeRows .srow >> nth=2 >> .swatch").click();
 await p.locator("#storeRows .srow >> nth=2 >> .up").click();
+await noOverflow(p, "설정 탭");
+await p.screenshot({ path: "set_390.png", fullPage: true });
 check((await p.locator("#storeRows input").evaluateAll(a => a.map(x => x.value))).join("|") === "다이소|동네 약국|이마트", "가게 이름·순서 바꾸기가 안 됨");
-await p.click("#storeClose");
+await tab("home");
 check((await rows("#addStores .chip")).join("|") === "다이소|동네 약국|이마트|아무 데서나", "가게 고친 것이 고르는 칸에 안 나옴");
 check(await p.locator('#addStores .chip[aria-pressed="true"]').textContent() === "동네 약국", "새로 더한 가게가 바로 골라지지 않음");
 await add("밴드");
-await p.click("#storesBtn"); const del = p.locator("#storeRows .srow >> nth=1 >> .del"); await del.click(); await p.locator("#storeRows .srow >> nth=1 >> .del").click(); await p.click("#storeClose");
+await tab("set"); const del = p.locator("#storeRows .srow >> nth=1 >> .del"); await del.click(); await p.locator("#storeRows .srow >> nth=1 >> .del").click(); await tab("home");
 check(await p.locator('.store:has(h2:text-matches("^동네 약국"))').count() === 0 && /밴드/.test(await store("아무 데서나").textContent()), "가게를 지웠을 때 물건이 아무 데서나로 안 감");
 
 // 기한 단추: 이번 주, 고치기(빼기·더하기·며칠 뒤)
@@ -78,17 +84,17 @@ const dueChips = async () => (await rows("#addDue .chip")).map(x => x.trim()).jo
 check(await dueChips() === "기한 없음|오늘|내일|이번 주|날짜", "기본 기한 단추가 오늘·내일·이번 주가 아님: " + await dueChips());
 await pickStore("이마트"); await p.locator('#addDue .chip:has-text("이번 주")').click(); await add("주간 물건");
 check(await p.evaluate(() => items.find(i => i.t === "주간 물건").due === ymd(dayFrom((7 - new Date().getDay()) % 7))), "이번 주가 이번 주 일요일로 안 들어감");
-await p.click("#dueBtn");
+await tab("set");
 await p.locator('#dueRows label:has-text("내일") .box').click(); await p.locator('#dueRows label:has-text("모레") .box').click();
 await p.fill("#dueNew", "10"); await p.click("#dueAdd button");
-check(await p.locator('#dueRows label:has-text("10일 뒤") .box').isChecked(), "며칠 뒤 더하기가 고치기 창에 안 나옴");
-await p.click("#dueClose");
+check(await p.locator('#dueRows label:has-text("10일 뒤") .box').isChecked(), "며칠 뒤 더하기가 설정에 안 나옴");
+await tab("home");
 check(await dueChips() === "기한 없음|오늘|모레|이번 주|10일 뒤|날짜", "기한 단추 고치기가 안 됨: " + await dueChips());
 await p.locator('#addDue .chip:has-text("10일 뒤")').click(); await add("열흘 물건");
 check(await p.evaluate(() => items.find(i => i.t === "열흘 물건").due === ymd(dayFrom(10))), "10일 뒤 단추의 날짜가 틀림");
 await p.reload(); await p.waitForTimeout(400);
 check(await dueChips() === "기한 없음|오늘|모레|이번 주|10일 뒤|날짜", "고친 기한 단추가 새로고침 뒤에 안 남음");
-await p.click("#dueBtn"); await p.locator('#dueRows label:has-text("10일 뒤") .box').click(); await p.click("#dueClose");
+await tab("set"); await p.locator('#dueRows label:has-text("10일 뒤") .box').click(); await tab("home");
 check(!/10일 뒤/.test(await dueChips()), "직접 더한 기한 단추 빼기가 안 됨");
 await p.locator('.store:has(h2:text-matches("^이마트")) li:has-text("주간 물건") .name').click(); await p.click("#itemDelete"); await p.click("#itemDelete");
 await p.locator('.store:has(h2:text-matches("^이마트")) li:has-text("열흘 물건") .name').click(); await p.click("#itemDelete"); await p.click("#itemDelete");
@@ -112,8 +118,11 @@ check(/2일 지남/.test(await p.textContent("#urgentList")), "지난 기한이 
 await store("이마트").locator(".box").first().click(); await p.waitForTimeout(350);
 await p.click("#bought summary"); await p.click("#boughtClear"); await p.click("#boughtClear");
 check(await p.locator("#bought").isHidden(), "산 것 모두 지우기가 안 됨");
-// 계정 창(연결 전)
-await p.click("#acctBtn"); check(/이 기기에만/.test(await p.textContent("#acctBody")), "연결 전 계정 창 안내가 안 나옴"); await p.click("#acctClose");
+// 가족 탭(연결 전)
+await tab("fam"); check(await p.locator("#viewFam").isVisible() && /이 기기에만/.test(await p.textContent("#acctBody")), "연결 전 가족 탭 안내가 안 나옴"); await tab("home");
+// 아래 메뉴가 목록 마지막 줄을 가리지 않는지
+await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+check(await p.evaluate(() => { const a = document.querySelector("#viewHome").getBoundingClientRect().bottom, b = document.querySelector(".tabbar .tab-main").getBoundingClientRect().top; return a <= b; }), "아래 메뉴가 목록 끝을 가림");
 await noOverflow(p, "휴대폰 전체 보기");
 await p.screenshot({ path: "basic_390.png", fullPage: true });
 await finish();

@@ -2,7 +2,8 @@
 import { PAGE, newPage, check, noOverflow, finish } from "./_common.mjs";
 const p = await newPage(390);
 await p.goto(PAGE + "?demo"); await p.waitForTimeout(600);
-check(/햇살이네 장보기/.test(await p.textContent("#acctBtn")), "미리보기 가족 이름이 안 나옴: " + await p.textContent("#acctBtn"));
+check(/햇살이네 장보기/.test(await p.textContent("#acctTitle")), "미리보기 가족 이름이 안 나옴: " + await p.textContent("#acctTitle"));
+check(await p.locator("#newsDot").isVisible(), "처음 온 사람에게 업데이트 소식 점이 안 보임");
 check(/3개/.test(await p.textContent("#urgentTitle")), "미리보기 급해요가 3개가 아님: " + await p.textContent("#urgentTitle"));
 check(await p.locator(".store").count() === 4, "미리보기 가게 묶음이 4개가 아님");
 check(await p.textContent("#conn") === "가족 2명 · 미리보기", "미리보기 표시가 안 나옴");
@@ -10,9 +11,9 @@ await p.fill("#addText", "미리보기 물건"); await p.click("#addForm button[
 await p.locator(".items .box").first().click(); await p.waitForTimeout(350);
 check(await p.evaluate(() => localStorage.getItem("tobuy-data")) === null, "미리보기가 이 기기 목록을 건드림");
 await noOverflow(p, "미리보기 휴대폰");
-check(await p.locator("#acctBtn").evaluate(b => b.scrollWidth <= b.clientWidth), "가족 이름 단추 글자가 잘림");
 await p.goto(PAGE + "?demo"); await p.waitForTimeout(600);
 await p.screenshot({ path: "demo_390.png", fullPage: true });
+await p.screenshot({ path: "demo_390_top.png" });
 for (const [w, scheme] of [[1100, "light"], [390, "dark"], [320, "light"]]){
   const q = await newPage(w, scheme);
   await q.goto(PAGE + "?demo"); await q.waitForTimeout(600);
