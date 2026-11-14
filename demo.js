@@ -35,7 +35,7 @@ const items = [
   item("두부", "emart", "", ME, true)
 ];
 const ok = () => Promise.resolve();
-const remote = { saveStores: ok, addItem: ok, updateItem: ok, deleteItem: ok };
+const remote = { saveStores: ok, saveDues: ok, addItem: ok, updateItem: ok, deleteItem: ok };
 const fam = { id: "demo", name: "햇살이네 장보기", invite: "demo", members: [ME, DAD] };
 
 window.FBAPP = {

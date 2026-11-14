@@ -20,7 +20,7 @@ await p.click("#acctClose");
 await p.evaluate(() => {
   const ok = (...a) => { __log(a.map(x => typeof x === "string" ? x : JSON.stringify(x)).join(" ")); return Promise.resolve(); };
   TOBUY.enterFamily({ id: "F", name: "햇살이네", invite: "inv", members: [{ uid: "u", name: "테스트" }, { uid: "v", name: "가족" }] },
-    { saveStores: s => ok("stores", s.map(x => x.name).join(",")), addItem: i => ok("add", i.t, i.s, i.by), updateItem: (id, f) => ok("upd", f), deleteItem: id => ok("del") });
+    { saveStores: s => ok("stores", s.map(x => x.name).join(",")), saveDues: d => ok("dues", d.join(",")), addItem: i => ok("add", i.t, i.s, i.by), updateItem: (id, f) => ok("upd", f), deleteItem: id => ok("del") });
   TOBUY.applyFamily({ stores: [{ id: "daiso", name: "다이소", c: 0 }, { id: "emart", name: "이마트", c: 1 }, { id: "mart", name: "동네마트", c: 3 }] });
   TOBUY.applyItems([{ id: "a1", t: "가족이 적은 두부", s: "mart", due: "", done: false, at: 1, by: "v", byName: "가족" },
     { id: "a2", t: "내가 적은 콩나물", s: "mart", due: "", done: false, at: 2, by: "u", byName: "테스트" }]);
@@ -38,6 +38,11 @@ await p.click("#bought summary"); await p.click("#boughtList .del");
 check(log.some(x => x === "del"), "지우기가 가족 공간으로 안 감");
 await p.click("#storesBtn"); await p.fill("#storeNew", "약국"); await p.click("#storeAdd button"); await p.click("#storeClose");
 check(log.some(x => x === "stores 다이소,이마트,동네마트,약국"), "가게 고치기가 가족 공간으로 안 감");
+// 기한 단추 고치기도 가족과 함께
+await p.click("#dueBtn"); await p.locator('#dueRows label:has-text("다음 주") .box').click(); await p.click("#dueClose");
+check(log.some(x => x === "dues today,tomorrow,week,nextweek"), "기한 단추 고치기가 가족 공간으로 안 감: " + log.filter(x => x.startsWith("dues")).join(" / "));
+await p.evaluate(() => TOBUY.applyFamily({ stores: [{ id: "mart", name: "동네마트", c: 3 }], dues: ["today", "month"] }));
+check((await p.locator("#addDue .chip").allTextContents()).map(x => x.trim()).join("|") === "기한 없음|오늘|이번 달|날짜", "가족이 고친 기한 단추가 화면에 안 옴");
 // 가족이 체크한 것이 옴
 await p.evaluate(() => TOBUY.applyItems([{ id: "a2", t: "내가 적은 콩나물", s: "mart", due: "", done: true, doneAt: 5, at: 2, by: "u", byName: "테스트" }]));
 check(await p.locator(".items li").count() === 0 && /산 것 1개/.test(await p.textContent("#boughtTitle")), "가족이 체크한 것이 화면에 안 옴");

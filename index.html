@@ -146,6 +146,8 @@ dialog p{margin:6px 0;font-size:14px;color:var(--muted)}
 .srow{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--rule)}
 .srow:first-child{border-top:0}
 .srow .field{padding:8px 10px;flex:1;min-width:0}
+label.srow{gap:10px;cursor:pointer;min-height:44px}
+.dname{flex:1;min-width:0}
 .swatch{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--paper);box-shadow:0 0 0 1.5px var(--line);background:var(--c)}
 .mini{flex:none;border:1.5px solid var(--line);background:transparent;border-radius:9px;min-width:32px;height:32px;font-size:13px;padding:0 6px}
 .mini:disabled{opacity:.35}
@@ -212,6 +214,7 @@ details.more .dl{margin-top:10px}
 
 <footer>
   <button type="button" id="storesBtn">가게 고치기</button>
+  <button type="button" id="dueBtn">기한 단추 고치기</button>
   <a href="privacy.html">개인정보처리방침</a>
   <span id="ver"></span>
   <span>Made by 음악적체육인</span>
@@ -253,6 +256,18 @@ details.more .dl{margin-top:10px}
   <div class="dl-foot"><div class="right"><button class="btn small ghost" type="button" id="storeClose">닫기</button></div></div>
 </dialog>
 
+<!-- 기한 단추 고치기 -->
+<dialog id="dueDlg">
+  <h2>기한 단추 고치기</h2>
+  <p>"언제"에 나올 단추를 골라 주세요. "기한 없음"과 "날짜"는 늘 나와요. "이번 주"는 이번 주 일요일까지예요.</p>
+  <div id="dueRows"></div>
+  <form class="add-row" id="dueAdd" style="margin-top:12px" autocomplete="off">
+    <input class="field" id="dueNew" type="number" min="0" max="90" inputmode="numeric" placeholder="며칠 뒤 (예: 10)" aria-label="며칠 뒤">
+    <button class="btn small" type="submit">더하기</button>
+  </form>
+  <div class="dl-foot"><div class="right"><button class="btn small ghost" type="button" id="dueClose">닫기</button></div></div>
+</dialog>
+
 <!-- 가족 공간 -->
 <dialog id="acctDlg">
   <h2 id="acctTitle">가족과 같이 쓰기</h2>
@@ -268,7 +283,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.0.1";
+const APP_VER = "1.1.0";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -283,17 +298,39 @@ function lsGet(k){ if (DEMO) return k in MEM ? MEM[k] : null; try{ const v = loc
 function lsSet(k, v){ MEM[k] = String(v); if (DEMO) return; try{ localStorage.setItem(k, v); }catch(e){} }
 const KEY = "tobuy-data", KEY_PICK = "tobuy-pick";
 
+/* "언제" 단추: 고를 수 있는 것들. dues 에는 켜 둔 단추의 id 만 적힘 (d10 = 10일 뒤처럼 직접 더한 것 포함) */
+const DUE_DEFAULT = ["today", "tomorrow", "week"];
+const DUE_CATALOG = [
+  { id: "today", label: "오늘", n: () => 0 },
+  { id: "tomorrow", label: "내일", n: () => 1 },
+  { id: "d2", label: "모레", n: () => 2 },
+  { id: "sat", label: "토요일", n: () => (6 - new Date().getDay() + 7) % 7 },
+  { id: "week", label: "이번 주", n: () => (7 - new Date().getDay()) % 7 },            // 이번 주 일요일까지
+  { id: "nextweek", label: "다음 주", n: () => (7 - new Date().getDay()) % 7 + 7 },    // 다음 주 일요일까지
+  { id: "month", label: "이번 달", n: () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate() - t.getDate(); } }
+];
+function dueDef(id){
+  const c = DUE_CATALOG.find(x => x.id === id); if (c) return c;
+  const m = /^d(\d{1,2})$/.exec(id); if (!m) return null;
+  const n = +m[1]; return { id, label: `${n}일 뒤`, n: () => n, custom: true };
+}
+/* 켜 둔 단추를 늘 같은 차례로: 고를 수 있는 것들 차례 → 직접 더한 것은 날짜 수 차례 */
+function dueList(){
+  const on = [...new Set(dues)].map(dueDef).filter(Boolean);
+  return DUE_CATALOG.filter(c => on.includes(c)).concat(on.filter(d => d.custom).sort((a, b) => a.n() - b.n()));
+}
+
 function defaultStores(){ return [{ id: "daiso", name: "다이소", c: 0 }, { id: "emart", name: "이마트", c: 1 }]; }
 function loadLocal(){
   try{
     const d = JSON.parse(lsGet(KEY) || "null");
-    if (d && Array.isArray(d.stores) && Array.isArray(d.items)) return d;
+    if (d && Array.isArray(d.stores) && Array.isArray(d.items)){ if (!Array.isArray(d.dues)) d.dues = DUE_DEFAULT.slice(); return d; }
   }catch(e){}
-  return { stores: defaultStores(), items: [] };
+  return { stores: defaultStores(), items: [], dues: DUE_DEFAULT.slice() };
 }
-function saveLocal(){ if (!FAMILY) lsSet(KEY, JSON.stringify({ stores, items })); }
+function saveLocal(){ if (!FAMILY) lsSet(KEY, JSON.stringify({ stores, items, dues })); }
 
-let { stores, items } = loadLocal();
+let { stores, items, dues } = loadLocal();
 let ACCOUNT = { phase: "loading" }, FAMILY = null, REMOTE = null, pending = 0;
 let pickStore = lsGet(KEY_PICK) || "", pickDue = "", shop = null, editing = null;
 
@@ -316,10 +353,7 @@ function dueInfo(due){
 }
 const isUrgent = i => !i.done && i.due && daysLeft(i.due) <= 1;
 function dueChoices(){
-  const sat = (6 - dayFrom(0).getDay() + 7) % 7;
-  const list = [{ v: "", label: "기한 없음" }, { v: today(), label: "오늘" }, { v: ymd(dayFrom(1)), label: "내일" }];
-  if (sat > 1) list.push({ v: ymd(dayFrom(sat)), label: "토요일" });
-  return list;
+  return [{ v: "", label: "기한 없음" }].concat(dueList().map(d => ({ v: ymd(dayFrom(d.n())), label: d.label })));
 }
 
 /* ---------- 가족 공간으로 보내기 ---------- */
@@ -419,8 +453,9 @@ function setPick(id){ pickStore = id; lsSet(KEY_PICK, id); }
 
 /* ---------- 그리기 ---------- */
 function chipRow(box, list, cur, onPick, label){
-  box.innerHTML = (label ? `<span class="pick-label">${label}</span>` : "") + list.map(o =>
-    `<button type="button" class="chip" data-v="${esc(o.v)}" aria-pressed="${o.v === cur}">${o.c !== undefined ? `<span class="dot" style="--c:${o.c}"></span>` : ""}${esc(o.label)}</button>`).join("");
+  const hit = list.findIndex(o => o.v === cur);
+  box.innerHTML = (label ? `<span class="pick-label">${label}</span>` : "") + list.map((o, k) =>
+    `<button type="button" class="chip" data-v="${esc(o.v)}" aria-pressed="${k === hit}">${o.c !== undefined ? `<span class="dot" style="--c:${o.c}"></span>` : ""}${esc(o.label)}</button>`).join("");
   box.onclick = e => { const b = e.target.closest(".chip[data-v]"); if (b) onPick(b.dataset.v); };
 }
 function dueRow(box, cur, onPick, label){
@@ -595,6 +630,30 @@ $("storeAdd").addEventListener("submit", e => { e.preventDefault(); addStore($("
 $("storesBtn").onclick = () => { renderStoreRows(); $("storeDlg").showModal(); };
 $("storeClose").onclick = () => $("storeDlg").close();
 
+/* ---------- 기한 단추 고치기 창 ---------- */
+function saveDues(){ push(r => r.saveDues(dues)); render(); if ($("dueDlg").open) renderDueRows(); }
+function renderDueRows(){
+  const on = new Set(dues), extra = dueList().filter(d => d.custom);
+  $("dueRows").innerHTML = DUE_CATALOG.concat(extra).map(d => { const day = dayFrom(d.n());
+    return `<label class="srow"><input class="box" type="checkbox" data-id="${d.id}" ${on.has(d.id) ? "checked" : ""}>` +
+      `<span class="dname">${d.label}</span><span class="due">${day.getMonth() + 1}/${day.getDate()}(${WEEK[day.getDay()]})</span></label>`; }).join("");
+}
+$("dueRows").addEventListener("change", e => {
+  const id = e.target.dataset.id; if (!id) return;
+  dues = e.target.checked ? dues.filter(x => x !== id).concat([id]) : dues.filter(x => x !== id);
+  saveDues();
+});
+$("dueAdd").addEventListener("submit", e => {
+  e.preventDefault();
+  const n = Math.round(+$("dueNew").value); $("dueNew").value = "";
+  if (!(n >= 0 && n <= 90)){ toast("0부터 90 사이 숫자를 적어 주세요"); return; }
+  const id = n === 0 ? "today" : n === 1 ? "tomorrow" : "d" + n;
+  if (!dues.includes(id)) dues = dues.concat([id]);
+  saveDues();
+});
+$("dueBtn").onclick = () => { renderDueRows(); $("dueDlg").showModal(); };
+$("dueClose").onclick = () => $("dueDlg").close();
+
 /* ---------- 가족 공간 창 ---------- */
 const inviteLink = () => FAMILY ? `${location.origin}${location.pathname}?join=${FAMILY.id}.${FAMILY.invite}` : "";
 function renderAccount(){
@@ -623,7 +682,7 @@ function renderAcctBody(){
     armTwice($("wipeBtn"), "계정과 자료 모두 지우기", "한 번 더 누르면 모두 지워요", () => act(async () => {
       await window.FBAPP.deleteAccount();
       try{ Object.keys(localStorage).filter(k => /^tobuy-/.test(k)).forEach(k => localStorage.removeItem(k)); }catch(e){}
-      ({ stores, items } = { stores: defaultStores(), items: [] }); render();
+      ({ stores, items, dues } = { stores: defaultStores(), items: [], dues: DUE_DEFAULT.slice() }); render();
     }, "계정과 자료를 모두 지웠어요."));
   } else if (a.phase === "nofamily"){
     $("acctTitle").textContent = "가족 공간 만들기";
@@ -659,7 +718,7 @@ $("acctBody").addEventListener("click", e => {
   if (!F){ $("acctMsg").textContent = "아직 연결되지 않았어요. 잠시 뒤에 다시 눌러 주세요."; return; }
   if (b.dataset.act === "login") act(() => F.login());
   else if (b.dataset.act === "logout") act(() => F.logout());
-  else if (b.dataset.act === "create") act(() => F.createFamily(($("famName").value || "").trim().slice(0, 20) || "우리 집 장보기", { stores }, items));
+  else if (b.dataset.act === "create") act(() => F.createFamily(($("famName").value || "").trim().slice(0, 20) || "우리 집 장보기", { stores, dues }, items));
   else if (b.dataset.act === "copy") act(async () => { await navigator.clipboard.writeText(inviteLink()); }, "초대 링크를 복사했어요.");
 });
 $("acctBtn").onclick = () => { renderAcctBody(); $("acctDlg").showModal(); };
@@ -671,8 +730,8 @@ window.TOBUY = {
   setAccount(info){ ACCOUNT = info; if (info.phase === "out" && info.joining && !$("acctDlg").open){ renderAcctBody(); $("acctDlg").showModal(); } renderAccount(); },
   enterFamily(fam, remote){ FAMILY = fam; REMOTE = remote; ACCOUNT = Object.assign({}, ACCOUNT, { phase: "in", why: "" }); render(); },
   updateFamilyInfo(fam){ FAMILY = Object.assign({}, FAMILY, fam); renderAccount(); },
-  leaveFamily(){ if (!FAMILY) return; FAMILY = null; REMOTE = null; pending = 0; ({ stores, items } = loadLocal()); shop = null; render(); },
-  applyFamily(d){ if (!FAMILY) return; stores = Array.isArray(d.stores) ? d.stores.map(s => Object.assign({}, s)) : defaultStores(); render(); if ($("storeDlg").open && document.activeElement.tagName !== "INPUT") renderStoreRows(); },
+  leaveFamily(){ if (!FAMILY) return; FAMILY = null; REMOTE = null; pending = 0; ({ stores, items, dues } = loadLocal()); shop = null; render(); },
+  applyFamily(d){ if (!FAMILY) return; stores = Array.isArray(d.stores) ? d.stores.map(s => Object.assign({}, s)) : defaultStores(); dues = Array.isArray(d.dues) ? d.dues.slice() : DUE_DEFAULT.slice(); render(); if ($("dueDlg").open) renderDueRows(); if ($("storeDlg").open && document.activeElement.tagName !== "INPUT") renderStoreRows(); },
   applyItems(list){ if (!FAMILY) return; items = list; render(); },
   showConnState,
   getLocal: () => loadLocal()

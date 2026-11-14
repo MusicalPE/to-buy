@@ -72,6 +72,26 @@ await add("밴드");
 await p.click("#storesBtn"); const del = p.locator("#storeRows .srow >> nth=1 >> .del"); await del.click(); await p.locator("#storeRows .srow >> nth=1 >> .del").click(); await p.click("#storeClose");
 check(await p.locator('.store:has(h2:text-matches("^동네 약국"))').count() === 0 && /밴드/.test(await store("아무 데서나").textContent()), "가게를 지웠을 때 물건이 아무 데서나로 안 감");
 
+// 기한 단추: 이번 주, 고치기(빼기·더하기·며칠 뒤)
+const dueChips = async () => (await rows("#addDue .chip")).map(x => x.trim()).join("|");
+check(await dueChips() === "기한 없음|오늘|내일|이번 주|날짜", "기본 기한 단추가 오늘·내일·이번 주가 아님: " + await dueChips());
+await pickStore("이마트"); await p.locator('#addDue .chip:has-text("이번 주")').click(); await add("주간 물건");
+check(await p.evaluate(() => items.find(i => i.t === "주간 물건").due === ymd(dayFrom((7 - new Date().getDay()) % 7))), "이번 주가 이번 주 일요일로 안 들어감");
+await p.click("#dueBtn");
+await p.locator('#dueRows label:has-text("내일") .box').click(); await p.locator('#dueRows label:has-text("모레") .box').click();
+await p.fill("#dueNew", "10"); await p.click("#dueAdd button");
+check(await p.locator('#dueRows label:has-text("10일 뒤") .box').isChecked(), "며칠 뒤 더하기가 고치기 창에 안 나옴");
+await p.click("#dueClose");
+check(await dueChips() === "기한 없음|오늘|모레|이번 주|10일 뒤|날짜", "기한 단추 고치기가 안 됨: " + await dueChips());
+await p.locator('#addDue .chip:has-text("10일 뒤")').click(); await add("열흘 물건");
+check(await p.evaluate(() => items.find(i => i.t === "열흘 물건").due === ymd(dayFrom(10))), "10일 뒤 단추의 날짜가 틀림");
+await p.reload(); await p.waitForTimeout(400);
+check(await dueChips() === "기한 없음|오늘|모레|이번 주|10일 뒤|날짜", "고친 기한 단추가 새로고침 뒤에 안 남음");
+await p.click("#dueBtn"); await p.locator('#dueRows label:has-text("10일 뒤") .box').click(); await p.click("#dueClose");
+check(!/10일 뒤/.test(await dueChips()), "직접 더한 기한 단추 빼기가 안 됨");
+await p.locator('.store:has(h2:text-matches("^이마트")) li:has-text("주간 물건") .name').click(); await p.click("#itemDelete"); await p.click("#itemDelete");
+await p.locator('.store:has(h2:text-matches("^이마트")) li:has-text("열흘 물건") .name').click(); await p.click("#itemDelete"); await p.click("#itemDelete");
+
 // 여기서 장보기
 await store("다이소").locator(".go").click();
 check(await p.locator("#shopbar").isVisible() && /다이소에서/.test(await p.textContent("#shopTitle")), "여기서 장보기 띠가 안 나옴");

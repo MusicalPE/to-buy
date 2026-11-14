@@ -105,7 +105,7 @@ async function start(){
       if (!me) throw new Error("먼저 로그인해 주세요.");
       const fref = F.doc(F.collection(db, "families"));
       await F.setDoc(fref, {
-        stores: (data && data.stores) || [],
+        stores: (data && data.stores) || [], dues: (data && data.dues) || [],
         name, owner: me.uid, members: [me.uid],
         memberInfo: { [me.uid]: { name: me.name, email: me.email } },
         invite: randomCode(), createdAt: F.serverTimestamp()
@@ -163,6 +163,7 @@ async function start(){
     const gone = e => { if (e && e.code === "not-found") return; throw friendly(e); };   // 가족이 먼저 지운 물건은 그냥 넘어감
     const remote = {
       saveStores: stores => F.updateDoc(fref, { stores, updatedBy: me.uid, updatedAt: F.serverTimestamp() }).catch(e => { throw friendly(e); }),
+      saveDues: dues => F.updateDoc(fref, { dues, updatedBy: me.uid, updatedAt: F.serverTimestamp() }).catch(e => { throw friendly(e); }),
       addItem: it => F.setDoc(F.doc(col, it.id), pickItem(it)).catch(e => { throw friendly(e); }),
       updateItem: (iid, fields) => F.updateDoc(F.doc(col, iid), pickItem(fields)).catch(gone),
       deleteItem: iid => F.deleteDoc(F.doc(col, iid)).catch(gone)
