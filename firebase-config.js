@@ -12,7 +12,7 @@ export const firebaseConfig = {
 /* ---------- 영수증 읽기 AI (Firebase AI Logic) ---------- */
 // App Check(reCAPTCHA Enterprise) 사이트 키 — AI Logic 을 켜면 App Check 가 함께 켜져서, 이 값이 있어야 앱의 AI가 움직여요.
 // 비어 있으면 앱의 AI는 쉬고, 내 AI 키를 넣은 사람만 영수증 읽기를 쓸 수 있어요.
-export const RECAPTCHA_SITE_KEY = "";
+export const RECAPTCHA_SITE_KEY = "6LfUgh8uAAAAAGVqiEYeaZ6oKmuLBHwYpciqpbqb";
 // 영수증을 읽을 AI 모델 (앞에서부터 차례로, 붐비거나 안 되면 다음 모델로)
 export const AI_MODELS = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"];
 // 다른 가족 공간은 앱의 AI로 몇 번까지 체험할지 (끝나면 설정에서 자기 Gemini API 키를 넣어 씀). 0 이면 모두 앱의 AI
