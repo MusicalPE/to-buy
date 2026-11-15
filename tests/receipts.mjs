@@ -94,6 +94,24 @@ await p.screenshot({ path: "job_390.png" });
 await p.click("#jobOpen");
 check(await p.locator("#viewLog").isVisible() && await p.inputValue("#recTotal") === "3000" && await p.locator("#recPhoto").isVisible() && await p.locator("#job").isHidden(), "[확인하기]로 확인 창이 안 열림");
 await p.click("#recCancel"); delay = 0;
+// 단가 · 수량 · 금액: 할인받은 줄은 할인 표시, 수량을 고치면 금액이 따라 바뀜(할인 줄은 그대로)
+answer = { ok: true, store: "다이소", date: today, total: 13600, items: [{ name: "컵떡볶이", unit: 3880, qty: 2, price: 3880 }, { name: "수제비", unit: 1980, qty: "2", price: 3960 }, { name: "오일", price: 5760 }] };
+await p.click("#scanBtn"); await scan(); await p.waitForSelector("#recDlg[open]");
+const rowVals = k => p.locator("#recItems .irow").nth(k).evaluate(r => [r.querySelector(".iname").value, r.querySelector(".iunit").value, r.querySelector(".iqty").value, r.querySelector(".iprice").value, r.querySelector(".idisc").hidden ? "" : r.querySelector(".idisc").textContent].join("|"));
+check(await rowVals(0) === "컵떡볶이|3880|2|3880|할인 3,880원", "할인받은 줄의 단가·수량·금액·할인 표시가 이상함: " + await rowVals(0));
+check(await rowVals(1) === "수제비|1980|2|3960|" && await rowVals(2) === "오일|5760|1|5760|", "단가·수량·금액이 이상함: " + await rowVals(1) + " / " + await rowVals(2));
+await p.locator("#recItems .irow").nth(1).locator(".iqty").fill("3");
+check(await rowVals(1) === "수제비|1980|3|5940|", "수량을 고쳐도 금액이 안 따라 바뀜: " + await rowVals(1));
+await p.locator("#recItems .irow").nth(0).locator(".iqty").fill("3");
+check(await rowVals(0) === "컵떡볶이|3880|3|3880|할인 7,760원", "할인받은 줄은 금액을 그대로 둬야 하는데 바뀜: " + await rowVals(0));
+await p.locator("#recItems .irow").nth(1).locator(".iqty").fill("2"); await p.locator("#recItems .irow").nth(0).locator(".iqty").fill("2");
+await noOverflow(p, "단가·수량·금액 줄");
+await p.evaluate(() => document.querySelector("#recItems").scrollIntoView()); await p.screenshot({ path: "items_390.png" });
+await p.click("#recSave");
+check(await p.evaluate(() => { const r = receipts.find(x => x.total === 13600); return r && JSON.stringify(r.items[0]) === JSON.stringify({ n: "컵떡볶이", u: 3880, q: 2, p: 3880 }); }), "단가·수량이 내역에 저장되지 않음");
+await p.locator('#recList li:has-text("컵떡볶이") button').click();
+check(await rowVals(0) === "컵떡볶이|3880|2|3880|할인 3,880원", "저장한 내역을 다시 열면 단가·수량이 달라짐");
+await p.click("#recDelete"); await p.click("#recDelete");
 // 다 읽은 것을 [버리기]
 await p.click("#scanBtn"); await scan(); await p.waitForSelector("#recDlg[open]"); await p.click("#recCancel");
 
