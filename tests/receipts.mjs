@@ -106,6 +106,7 @@ await p.locator("#recItems .irow").nth(0).locator(".iqty").fill("3");
 check(await rowVals(0) === "컵떡볶이|3880|3|3880|할인 7,760원", "할인받은 줄은 금액을 그대로 둬야 하는데 바뀜: " + await rowVals(0));
 await p.locator("#recItems .irow").nth(1).locator(".iqty").fill("2"); await p.locator("#recItems .irow").nth(0).locator(".iqty").fill("2");
 await noOverflow(p, "단가·수량·금액 줄");
+check(await p.locator("#recItems .irow").first().evaluate(r => { const y = [...r.querySelectorAll("input, .idel")].map(x => Math.round(x.getBoundingClientRect().top / 6)); return new Set(y).size === 1 && r.querySelector(".iprice").getBoundingClientRect().width >= 60; }), "산 것 한 줄이 한 줄로 안 나오거나 금액 칸이 너무 좁음");
 await p.evaluate(() => document.querySelector("#recItems").scrollIntoView()); await p.screenshot({ path: "items_390.png" });
 await p.click("#recSave");
 check(await p.evaluate(() => { const r = receipts.find(x => x.total === 13600); return r && JSON.stringify(r.items[0]) === JSON.stringify({ n: "컵떡볶이", u: 3880, q: 2, p: 3880 }); }), "단가·수량이 내역에 저장되지 않음");

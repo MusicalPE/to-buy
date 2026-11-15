@@ -164,14 +164,18 @@ body[data-shop] .box{width:32px;height:32px}
 #recPhoto{display:block;width:100%;max-height:38vh;object-fit:contain;background:var(--bg);border:1px solid var(--line);border-radius:12px;margin:8px 0}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .two label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted);min-width:0}
-/* 산 것 한 줄: 위에는 이름, 아래에는 단가 × 수량 = 금액 */
-.irow{padding:10px 0;border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:6px}
-.irow:first-child{border-top:0}
-.irow .field{padding:8px 10px;font-size:15px;min-width:0;width:100%}
-.iline1{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
-.iline2{display:grid;grid-template-columns:1.25fr .8fr 1.25fr;gap:6px}
-.iline2 label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted);min-width:0}
-.idisc{font-size:12px;color:var(--accent)}
+/* 산 것 한 줄: 이름 · 단가 · 수량 · 금액 · 빼기 (이름이 길면 칸 안에서 잘려 보임) */
+.ihead,.iline{display:grid;grid-template-columns:minmax(0,1fr) 62px 38px 66px 30px;gap:4px;align-items:center}
+.ihead{font-size:11px;color:var(--muted);padding:0 2px 2px}
+.ihead span:not(:first-child){text-align:center}
+.irow{padding:3px 0}
+.irow .field{padding:8px 6px;font-size:14px;min-width:0;width:100%;border-radius:9px}
+.irow .iname{text-overflow:ellipsis}
+.irow input[type=number]{text-align:right;-moz-appearance:textfield;appearance:textfield}
+.irow input[type=number]::-webkit-outer-spin-button,.irow input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.irow .iqty{text-align:center}
+.irow .idel{padding:8px 0;font-size:12px}
+.idisc{display:block;font-size:11px;color:var(--accent);text-align:right;padding:1px 36px 2px 0}
 #recItemsNote{font-size:12px}
 /* 영수증 읽는 동안 맨 위에 뜨는 띠 — 화면을 막지 않아 다른 탭을 둘러봐도 됨 */
 .job{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:55;width:min(520px,calc(100vw - 20px));background:var(--ink);color:var(--bg);border-radius:18px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:8px}
@@ -404,6 +408,7 @@ details.more .dl{margin-top:10px}
     </div>
     <div>
       <p>산 것 <span id="recItemsNote"></span></p>
+      <div class="ihead" id="recItemsHead"><span>이름</span><span>단가</span><span>수량</span><span>금액</span><span></span></div>
       <div id="recItems"></div>
       <button class="x" type="button" id="recItemAdd">산 것 한 줄 더하기</button>
     </div>
@@ -430,7 +435,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.6.0";
+const APP_VER = "1.6.1";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -931,8 +936,7 @@ function addRecItem(i){
   i = i || {};
   const q = numOr(i.q, 1) || 1, pp = numOr(i.p, null), u = numOr(i.u, pp === null ? null : Math.round(pp / q));
   const row = document.createElement("div"); row.className = "irow";
-  row.innerHTML = `<div class="iline1"><input class="field iname" type="text" maxlength="40" placeholder="산 것" aria-label="산 것 이름"><button type="button" class="x idel">빼기</button></div>
-    <div class="iline2"><label>단가<input class="field iunit" type="number" min="0" inputmode="numeric" placeholder="원"></label><label>수량<input class="field iqty" type="number" min="0" step="any" inputmode="decimal"></label><label>금액<input class="field iprice" type="number" min="0" inputmode="numeric" placeholder="원"></label></div><small class="idisc" hidden></small>`;
+  row.innerHTML = `<div class="iline"><input class="field iname" type="text" maxlength="40" placeholder="산 것" aria-label="산 것 이름"><input class="field iunit" type="number" min="0" inputmode="numeric" aria-label="단가"><input class="field iqty" type="number" min="0" step="any" inputmode="decimal" aria-label="수량"><input class="field iprice" type="number" min="0" inputmode="numeric" aria-label="금액"><button type="button" class="x idel">빼기</button></div><small class="idisc" hidden></small>`;
   row.querySelector(".iname").value = i.n || "";
   row.querySelector(".iunit").value = u === null ? "" : u;
   row.querySelector(".iqty").value = q;
@@ -954,6 +958,7 @@ function readRecItems(){
 /* 적힌 물건값을 더한 값이 낸 돈과 다르면 알려 줌(할인·봉투값 때문에 다를 수 있어 막지는 않음) */
 function recNote(){
   const its = readRecItems(), sum = its.reduce((a, i) => a + i.p, 0), total = Math.round(+$("recTotal").value) || 0;
+  $("recItemsHead").hidden = !$("recItems").children.length;
   $("recItemsNote").textContent = !its.length ? "(적지 않아도 돼요)" : sum === total ? `${its.length}가지 · 더하면 낸 돈과 같아요` : `${its.length}가지 · 더하면 ${won(sum)}`;
 }
 $("recItems").addEventListener("click", e => { if (e.target.closest(".idel")){ e.target.closest(".irow").remove(); recNote(); } });
