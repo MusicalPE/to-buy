@@ -5,12 +5,13 @@ const tab = t => p.click(`.tabbar button[data-tab="${t}"]`);
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 const scan = () => p.setInputFiles("#scanFile", { name: "r.png", mimeType: "image/png", buffer: png });
 // 구글 Gemini 흉내: 키 확인(GET)과 읽기(POST)
-const calls = []; let answer = null, status = 200;
+const calls = []; let answer = null, status = 200, delay = 0;
 await p.route(/generativelanguage\.googleapis\.com/, async r => {
   const q = r.request(), key = q.headers()["x-goog-api-key"];
   if (q.method() === "GET") return r.fulfill({ status: key === "GOODKEY" ? 200 : 400, contentType: "application/json", body: "{}" });
   const body = JSON.parse(q.postData());
   calls.push({ key, model: q.url().split("/models/")[1], photo: !!(body.contents[0].parts[1] && body.contents[0].parts[1].inlineData && body.contents[0].parts[1].inlineData.data.length > 20) });
+  if (delay) await new Promise(ok => setTimeout(ok, delay));
   if (status !== 200) return r.fulfill({ status, contentType: "application/json", body: JSON.stringify({ error: { status: "UNAVAILABLE", message: "overloaded" } }) });
   r.fulfill({ contentType: "application/json", body: JSON.stringify({ candidates: [{ content: { parts: [{ text: "```json\n" + JSON.stringify(answer) + "\n```" }] } }] }) });
 });
@@ -71,12 +72,30 @@ check(await p.locator("#recList li[data-id]").count() === 2 && await p.locator("
 // 영수증이 아닌 사진
 answer = { ok: false };
 await p.click("#scanBtn"); await scan(); await p.waitForTimeout(500);
-check(!(await p.locator("#recDlg").evaluate(d => d.open)) && /영수증으로 보이지 않아요/.test(await p.textContent("#toastText")), "영수증이 아닌 사진인데 안내가 안 나옴");
+check(!(await p.locator("#recDlg").evaluate(d => d.open)) && /영수증으로 보이지 않아요/.test(await p.textContent("#jobText")) && await p.locator("#jobOpen").isHidden(), "영수증이 아닌 사진인데 안내가 안 나옴");
+await p.click("#jobDrop"); check(await p.locator("#job").isHidden(), "안내 띠 닫기가 안 됨");
 // 모든 모델이 붐빌 때
 status = 503; const before = calls.length;
 await p.click("#scanBtn"); await scan(); await p.waitForTimeout(700);
-check(calls.length - before >= 2 && !(await p.locator("#busyDlg").evaluate(d => d.open)) && /읽지 못했어요/.test(await p.textContent("#toastText")), "붐빌 때 다음 모델로 넘어가지 않거나 안내가 안 나옴");
+check(calls.length - before >= 2 && /읽지 못했어요/.test(await p.textContent("#jobText")) && !(await p.locator("#scanBtn").isDisabled()), "붐빌 때 다음 모델로 넘어가지 않거나 안내가 안 나옴");
+await p.click("#jobDrop");
 status = 200;
+
+// 읽는 동안 화면을 막지 않음: 단계·걸린 시간이 보이고, 다른 탭에서 일을 봐도 되고, 다 읽으면 [확인하기]
+answer = { ok: true, store: "다이소 햇살점", date: today, total: 3000, items: [{ name: "수세미", price: 3000 }] }; delay = 1500;
+await p.click("#scanBtn"); await scan(); await p.waitForTimeout(400);
+check(await p.locator("#job").isVisible() && /2\/3 AI가 영수증을 읽는 중/.test(await p.textContent("#jobText")) && /\d+초/.test(await p.textContent("#jobTime")), "읽는 중 단계·시간 안내가 안 나옴: " + await p.textContent("#jobText"));
+check(await p.locator("#scanBtn").isDisabled() && await p.locator("dialog[open]").count() === 0, "읽는 동안 화면을 막거나, 또 찍을 수 있음");
+await tab("home"); await p.fill("#addText", "읽는 동안 적은 물건"); await p.click("#addForm button[type=submit]");
+check(await p.locator('li:has-text("읽는 동안 적은 물건")').count() === 1, "읽는 동안 장바구니를 못 씀");
+await p.waitForSelector("#jobOpen:visible");
+check(/다 읽었어요/.test(await p.textContent("#jobText")) && !(await p.locator("#recDlg").evaluate(d => d.open)), "다른 탭을 보는 중인데 확인 창이 불쑥 뜨거나 안내가 안 나옴");
+await p.screenshot({ path: "job_390.png" });
+await p.click("#jobOpen");
+check(await p.locator("#viewLog").isVisible() && await p.inputValue("#recTotal") === "3000" && await p.locator("#recPhoto").isVisible() && await p.locator("#job").isHidden(), "[확인하기]로 확인 창이 안 열림");
+await p.click("#recCancel"); delay = 0;
+// 다 읽은 것을 [버리기]
+await p.click("#scanBtn"); await scan(); await p.waitForSelector("#recDlg[open]"); await p.click("#recCancel");
 
 // 이전 달 · 새로고침 · 가게를 지워도 내역에 이름이 남는지
 await p.click("#monPrev");
