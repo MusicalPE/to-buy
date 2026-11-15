@@ -28,9 +28,21 @@ check(await p.textContent("#monSum") === "7,760원", "공유로 넣은 영수증
 // 새로고침해도 다시 읽지 않음
 await p.reload(); await p.waitForTimeout(800);
 check(calls === 1 && await p.locator("dialog[open]").count() === 0 && await p.locator("#job").isHidden(), "새로고침하면 공유 그림을 또 읽음");
+// 주소에 표시가 없어도(브라우저가 앱 첫 화면으로 바로 여는 경우), 앱이 열려 있는 채로 그림만 들어와도 읽음
+const putShared = ago => p.evaluate(async ago => { const c = await caches.open("tobuy-share"); const bytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="), ch => ch.charCodeAt(0));
+  await c.put("./shared-receipt", new Response(new Blob([bytes], { type: "image/png" }), { headers: { "content-type": "image/png", "x-at": String(Date.now() - ago) } })); }, ago);
+await putShared(0); await p.goto(PAGE); await p.waitForSelector("#recDlg[open]", { timeout: 15000 }).catch(() => {});
+check(calls === 2 && await p.locator("#recDlg").evaluate(d => d.open) && await p.locator("#viewLog").isVisible(), "주소에 표시가 없으면 공유 그림을 안 읽음");
+await p.click("#recCancel"); await p.click('.tabbar button[data-tab="home"]');
+await putShared(0); await p.evaluate(() => window.dispatchEvent(new Event("pageshow"))); await p.waitForSelector("#recDlg[open]", { timeout: 15000 }).catch(() => {});
+check(calls === 3 && await p.locator("#recDlg").evaluate(d => d.open), "앱이 열려 있는 채로 들어온 공유 그림을 안 읽음");
+await p.click("#recCancel");
+// 5분 넘게 묵은 그림은 읽지 않고 버림
+await putShared(6 * 60000); await p.reload(); await p.waitForTimeout(1200);
+check(calls === 3 && await p.locator("#job").isHidden() && await p.evaluate(async () => !(await (await caches.open("tobuy-share")).match("./shared-receipt"))), "묵은 공유 그림을 읽거나 남겨 둠");
 // AI를 쓸 수 없을 때(키 없음): 읽지 않고 안내
 await p.evaluate(() => localStorage.removeItem("tobuy-aikey")); await p.reload(); await p.waitForTimeout(600);
 await Promise.all([p.waitForURL(u => !/shared=1/.test(u.search) && !/share$/.test(u.pathname), { timeout: 15000 }).catch(() => {}), shareIn()]);
 await p.waitForTimeout(1500);
-check(calls === 1 && await p.locator("#viewSet").isVisible() && await p.evaluate(async () => !(await (await caches.open("tobuy-share")).match("./shared-receipt"))), "AI를 쓸 수 없을 때 안내로 안 가거나 그림이 남음");
+check(calls === 3 && await p.locator("#viewSet").isVisible() && await p.evaluate(async () => !(await (await caches.open("tobuy-share")).match("./shared-receipt"))), "AI를 쓸 수 없을 때 안내로 안 가거나 그림이 남음");
 await finish();

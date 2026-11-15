@@ -435,7 +435,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.6.2";
+const APP_VER = "1.6.3";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -1207,25 +1207,40 @@ function tryShare(force){
   if (!force && ACCOUNT && ACCOUNT.phase === "loading") return;
   const file = pendingShare; pendingShare = null; clearTimeout(shareTimer);
   setTab("log");
-  if (scanJob && !scanJob.error && !scanJob.done){ toast("지금 읽고 있는 영수증이 끝난 뒤에 다시 공유해 주세요"); return; }
+  if (scanJob && !scanJob.error && !scanJob.done){ toast("지금 읽고 있는 영수증이 끝난 뒤에 다시 공유해 주세요"); dropShared(); return; }
   const mode = aiMode();
-  if (AI_WHY[mode]){ toast(AI_WHY[mode]); setTab("set"); $("aiCard").scrollIntoView({ block: "start" }); return; }
+  if (AI_WHY[mode]){ toast(AI_WHY[mode]); setTab("set"); $("aiCard").scrollIntoView({ block: "start" }); dropShared(); return; }
   if (scanJob) jobEnd();
-  startScan(file);
+  toast("공유받은 영수증을 읽을게요");
+  startScan(file).then(dropShared, dropShared);      // 다 읽은 뒤에 맡아 둔 그림을 지움(읽는 도중 화면이 새로 열려도 그림이 사라지지 않게)
 }
-(async function takeShared(){
-  const shared = /[?&]shared=1(&|$)/.test(location.search);
-  if (shared) history.replaceState(null, "", location.pathname);
-  if (!("caches" in window)) return;
+async function dropShared(){ try{ await (await caches.open("tobuy-share")).delete("./shared-receipt"); }catch(e){} }
+/* 맡아 둔 그림이 있으면 가져옴. 브라우저에 따라 주소에 ?shared=1 이 안 붙거나, 열려 있던 앱이 그대로 앞으로 나오기도 해서
+   주소 표시에 기대지 않고 앱을 열 때·다시 보일 때·서비스 워커가 알릴 때마다 확인함. 5분 넘게 묵은 그림은 읽지 않고 버림 */
+let shareBusy = false, lastSharedAt = 0;
+async function checkShared(){
+  if (shareBusy || pendingShare || DEMO || !("caches" in window)) return;
+  shareBusy = true;
   try{
     const c = await caches.open("tobuy-share"), r = await c.match("./shared-receipt");
-    await c.delete("./shared-receipt");
-    if (!shared || !r) return;
-    pendingShare = await r.blob();
-    shareTimer = setTimeout(() => tryShare(true), 8000);
-    tryShare();
+    if (r){
+      const at = +r.headers.get("x-at") || 0;
+      if (Date.now() - at >= 5 * 60000) await c.delete("./shared-receipt");
+      else if (at !== lastSharedAt){        // 같은 그림을 이 화면에서 두 번 읽지 않음
+        lastSharedAt = at;
+        pendingShare = await r.blob();
+        clearTimeout(shareTimer); shareTimer = setTimeout(() => tryShare(true), 8000);
+        tryShare();
+      }
+    }
   }catch(e){}
-})();
+  shareBusy = false;
+}
+if (/[?&]shared=1(&|$)/.test(location.search)) history.replaceState(null, "", location.pathname);
+checkShared();
+/* 열려 있던 앱이 앞으로 나올 때도 확인 — 곧 화면이 새로 열릴 수도 있으니 조금 뒤에 */
+document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(checkShared, 700); });
+window.addEventListener("pageshow", () => setTimeout(checkShared, 700));
 
 /* ---------- 업데이트 소식 (굵직한 기능만) ---------- */
 const NEWS = [
