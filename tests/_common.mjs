@@ -20,8 +20,8 @@ const font = (n, w) => `@font-face{font-family:"${n}";font-weight:${w};src:url(d
 const css = [font("Do Hyeon", 400), font("Nanum Gothic", 400), font("Nanum Gothic", 700), font("Nanum Gothic", 800)].join("\n");
 export const problems = [];
 const b = await chromium.launch();
-export async function newPage(vw, scheme = "light", vh = 844){
-  const ctx = await b.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 2, colorScheme: scheme, permissions: ["clipboard-read", "clipboard-write"], serviceWorkers: "block" });
+export async function newPage(vw, scheme = "light", vh = 844, sw = "block"){
+  const ctx = await b.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 2, colorScheme: scheme, permissions: ["clipboard-read", "clipboard-write"], serviceWorkers: sw });
   const p = await ctx.newPage();
   p.on("pageerror", e => problems.push(`[${vw}] JS오류: ${e.message}`));
   p.on("dialog", d => { problems.push("브라우저 알림창이 뜸: " + d.message()); d.dismiss(); });

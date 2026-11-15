@@ -1,0 +1,36 @@
+// [공유]로 영수증 그림 넘겨받기: 서비스 워커가 그림을 받아 앱 화면으로 넘기고, 화면이 가져가서 바로 읽고, 맡아 둔 그림은 지움
+import { PAGE, newPage, check, finish } from "./_common.mjs";
+const p = await newPage(390, "light", 844, "allow");
+const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+let calls = 0;
+await p.context().route(/generativelanguage\.googleapis\.com/, r => { if (r.request().method() === "POST") calls++;
+  r.fulfill({ contentType: "application/json", body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ ok: true, store: "이마트 햇살점", date: "", total: 7760, items: [{ name: "수제비", unit: 1980, qty: 2, price: 3960 }, { name: "컵밥", unit: 3800, qty: 1, price: 3800 }] }) }] } }] }) }); });
+await p.goto(PAGE); await p.evaluate(() => navigator.serviceWorker.ready); await p.reload(); await p.waitForTimeout(600);
+check(await p.evaluate(() => !!navigator.serviceWorker.controller), "서비스 워커가 화면을 맡지 않음");
+check(await p.evaluate(async () => { const m = await (await fetch("manifest.webmanifest")).json(); const t = m.share_target; return !!t && t.method === "POST" && t.enctype === "multipart/form-data" && t.params.files[0].name === "receipt"; }), "설치 정보에 공유 받기 설정이 없음");
+await p.evaluate(() => localStorage.setItem("tobuy-aikey", "GOODKEY"));
+// 다른 앱이 공유로 그림을 넘기는 것과 같은 방식(그림을 담아 ./share 로 보내기)
+const shareIn = () => p.evaluate(() => {
+  const bytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="), c => c.charCodeAt(0));
+  const f = document.createElement("form"); f.method = "POST"; f.action = "./share"; f.enctype = "multipart/form-data";
+  const i = document.createElement("input"); i.type = "file"; i.name = "receipt";
+  const dt = new DataTransfer(); dt.items.add(new File([bytes], "capture.png", { type: "image/png" })); i.files = dt.files;
+  f.appendChild(i); document.body.appendChild(f); f.submit();
+});
+await Promise.all([p.waitForURL(u => !/shared=1/.test(u.search) && !/share$/.test(u.pathname), { timeout: 15000 }).catch(() => {}), shareIn()]);
+await p.waitForSelector("#recDlg[open]", { timeout: 15000 }).catch(() => {});
+check(await p.locator("#recDlg").evaluate(d => d.open), "공유로 넘긴 그림을 읽은 확인 창이 안 뜸 (주소: " + p.url() + ")");
+check(calls === 1 && await p.inputValue("#recTotal") === "7760" && await p.locator("#recItems .irow").count() === 2 && await p.locator("#recPhoto").isVisible(), "공유로 넘긴 그림을 AI로 읽지 않았거나 내용이 이상함");
+check(await p.locator("#viewLog").isVisible() && !/shared=1/.test(p.url()), "공유로 들어온 뒤 내역 탭이 아니거나 주소에 표시가 남음");
+check(await p.evaluate(async () => !(await (await caches.open("tobuy-share")).match("./shared-receipt"))), "넘겨받은 그림이 지워지지 않고 남아 있음");
+await p.click("#recSave");
+check(await p.textContent("#monSum") === "7,760원", "공유로 넣은 영수증이 내역에 안 들어감");
+// 새로고침해도 다시 읽지 않음
+await p.reload(); await p.waitForTimeout(800);
+check(calls === 1 && await p.locator("dialog[open]").count() === 0 && await p.locator("#job").isHidden(), "새로고침하면 공유 그림을 또 읽음");
+// AI를 쓸 수 없을 때(키 없음): 읽지 않고 안내
+await p.evaluate(() => localStorage.removeItem("tobuy-aikey")); await p.reload(); await p.waitForTimeout(600);
+await Promise.all([p.waitForURL(u => !/shared=1/.test(u.search) && !/share$/.test(u.pathname), { timeout: 15000 }).catch(() => {}), shareIn()]);
+await p.waitForTimeout(1500);
+check(calls === 1 && await p.locator("#viewSet").isVisible() && await p.evaluate(async () => !(await (await caches.open("tobuy-share")).match("./shared-receipt"))), "AI를 쓸 수 없을 때 안내로 안 가거나 그림이 남음");
+await finish();
