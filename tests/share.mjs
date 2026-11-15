@@ -26,11 +26,11 @@ check(await p.evaluate(async () => !(await (await caches.open("tobuy-share")).ma
 await p.click("#recSave");
 check(await p.textContent("#monSum") === "7,760원", "공유로 넣은 영수증이 내역에 안 들어감");
 await p.click('.tabbar button[data-tab="set"]');
-check(/마지막 공유 기록: .*그림 받음 · 형식 multipart\/form-data · 받은 것: receipt=image\/png \d+바이트/.test(await p.textContent("#shareDiag")), "설정에 공유 기록이 안 나옴: " + await p.textContent("#shareDiag"));
+check(await p.locator("#shareDiag").isHidden() && /"ok":true/.test(await p.evaluate(() => localStorage.getItem("tobuy-share-diag"))), "그림을 잘 받았는데 공유 기록이 보이거나, 기록이 안 남음");
 // 그림이 없는 공유(글자만 온 경우): 읽지 않고 기록만 남김
 await p.evaluate(() => { const f = document.createElement("form"); f.method = "POST"; f.action = "./share"; f.enctype = "multipart/form-data"; const i = document.createElement("input"); i.name = "text"; i.value = "영수증"; f.appendChild(i); document.body.appendChild(f); f.submit(); });
 await p.waitForTimeout(1500); await p.click('.tabbar button[data-tab="set"]');
-check(calls === 1 && /그림 없음 .*받은 것: text=글자 3자/.test(await p.textContent("#shareDiag")), "그림 없는 공유의 기록이 이상함: " + await p.textContent("#shareDiag"));
+check(calls === 1 && await p.locator("#shareDiag").isVisible() && /그림 없음 .*받은 것: text=글자 3자/.test(await p.textContent("#shareDiag")), "그림 없는 공유의 기록이 이상함: " + await p.textContent("#shareDiag"));
 // 새로고침해도 다시 읽지 않음
 await p.reload(); await p.waitForTimeout(800);
 check(calls === 1 && await p.locator("dialog[open]").count() === 0 && await p.locator("#job").isHidden(), "새로고침하면 공유 그림을 또 읽음");
