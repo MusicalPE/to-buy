@@ -436,7 +436,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.6.5";
+const APP_VER = "1.6.6";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -1225,7 +1225,7 @@ function renderShareDiag(){
   let d = null; try{ d = JSON.parse(lsGet(KEY_SHAREDIAG) || "null"); }catch(e){}
   $("shareDiag").hidden = !d || d.ok; if (!d || d.ok) return;      // 그림을 잘 받았으면 보여 주지 않음(안 될 때 원인을 찾는 용도)
   const t = new Date(d.at), pad2 = n => String(n).padStart(2, "0");
-  $("shareDiag").textContent = `마지막 공유 기록: ${t.getMonth() + 1}/${t.getDate()} ${pad2(t.getHours())}:${pad2(t.getMinutes())} · ${d.ok ? "그림 받음" : "그림 없음"} · 형식 ${d.ct || "없음"} · 받은 것: ${(d.parts || []).join(", ") || "없음"}${d.err ? " · 오류: " + d.err : ""}`;
+  $("shareDiag").textContent = `마지막 공유 기록: ${t.getMonth() + 1}/${t.getDate()} ${pad2(t.getHours())}:${pad2(t.getMinutes())} · ${d.ok ? "그림 받음" : "그림 없음"} · 형식 ${d.ct || "없음"} · 받은 것: ${(d.parts || []).join(", ") || "없음"}${d.err ? " · 오류: " + d.err : ""} — 공유가 안 될 때는 이 줄을 캡처해서 문의해 주세요.`;
 }
 async function checkShared(){
   if (shareBusy || pendingShare || DEMO || !("caches" in window)) return;
