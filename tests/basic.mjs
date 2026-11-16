@@ -40,6 +40,29 @@ check(await store("이마트").locator("li").count() === 2 && await p.locator("#
 await store("이마트").locator('li:has-text("우유") .box').click(); await p.waitForTimeout(350);
 await p.click("#bought summary"); await p.click("#boughtList .again");
 check(await store("이마트").locator("li").count() === 2, "다시 담기가 안 됨");
+check(/이마트에 다시 담았어요/.test(await p.textContent("#toastText")) && await p.textContent("#toastUndo") === "가게 바꾸기", "다시 담은 뒤 [가게 바꾸기] 안내가 안 나옴");
+// 다시 담은 뒤 [가게 바꾸기]로 다른 가게에
+await p.click("#toastUndo"); await p.locator('#backStores .chip:has-text("다이소")').click();
+check(await store("다이소").locator('li:has-text("우유")').count() === 1 && await store("이마트").locator('li:has-text("우유")').count() === 0, "[가게 바꾸기]로 가게가 안 바뀜");
+// 산 것 줄을 길게 누르면 가게 고르는 창이 뜨고, 고른 가게에 담김 (짧게 누르면 안 뜸)
+await store("다이소").locator('li:has-text("우유") .box').click(); await p.waitForTimeout(350);
+const clear = () => p.evaluate(() => { document.getElementById("toast").hidden = true; document.querySelector("#boughtList li").scrollIntoView({ block: "center" }); });   // 알림 띠가 줄을 가리지 않게
+await clear();
+const row = p.locator('#boughtList li:has-text("우유") .t'), box = await row.boundingBox();
+await p.mouse.move(box.x + 20, box.y + 10); await p.mouse.down(); await p.waitForTimeout(200); await p.mouse.up();
+check(!(await p.locator("#backDlg").evaluate(d => d.open)), "짧게 눌렀는데 가게 고르는 창이 뜸");
+await p.mouse.down(); await p.waitForTimeout(700); await p.mouse.up();
+check(await p.locator("#backDlg").evaluate(d => d.open) && /우유, 어디에 담을까요/.test(await p.textContent("#backTitle")) && await p.locator('#backStores .chip[aria-pressed="true"]').textContent() === "다이소", "길게 눌러도 가게 고르는 창이 안 뜨거나 전에 산 가게가 안 골라져 있음");
+await p.locator('#backStores .chip:has-text("이마트")').click();
+check(await store("이마트").locator('li:has-text("우유")').count() === 1 && await p.locator("#bought").isHidden() && !(await p.locator("#backDlg").evaluate(d => d.open)), "길게 눌러 고른 가게에 안 담김");
+// [다시 담기] 단추를 길게 눌러도 가게 고르기만 뜨고, 손을 떼도 그냥 담기지 않음
+await store("이마트").locator('li:has-text("우유") .box').click(); await p.waitForTimeout(350);
+await clear();
+const ab = await p.locator("#boughtList .again").boundingBox();
+await p.mouse.move(ab.x + 10, ab.y + 10); await p.mouse.down(); await p.waitForTimeout(700); await p.mouse.up(); await p.waitForTimeout(100);
+check(await p.locator("#backDlg").evaluate(d => d.open) && await p.locator("#boughtList li").count() === 1, "단추를 길게 눌렀을 때 창이 안 뜨거나 그냥 담겨 버림");
+await p.click("#backClose"); await p.click("#boughtList .again");
+check(await store("이마트").locator("li").count() === 2, "창을 닫은 뒤 다시 담기가 안 됨");
 // 전에 산 물건을 다시 적으면 그 줄이 살아남(두 줄이 되지 않음)
 await store("이마트").locator('li:has-text("계란") .box').click(); await p.waitForTimeout(350);
 await pickStore("다이소"); await add("계란");

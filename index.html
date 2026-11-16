@@ -127,6 +127,8 @@ body[data-shop] .box{width:32px;height:32px}
 .bought .t{flex:1;min-width:0;color:var(--muted);overflow-wrap:anywhere}
 .bought .t small{display:block;font-size:11px}
 .x{border:0;background:transparent;color:var(--muted);font-size:13px;padding:8px 4px;text-decoration:underline;text-underline-offset:3px}
+.bought-hint{margin:0 0 6px;font-size:12px;color:var(--muted)}
+.bought li{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .bought-foot{display:flex;justify-content:flex-end;padding:8px 0}
 
 /* 가족 · 설정 카드 */
@@ -299,7 +301,8 @@ details.more .dl{margin-top:10px}
 
   <details class="bought" id="bought" hidden>
     <summary><span id="boughtTitle">산 것</span><span>다시 담기</span></summary>
-    <ul id="boughtList"></ul>
+    <p class="bought-hint">길게 누르면 다른 가게에 담을 수 있어요.</p>
+  <ul id="boughtList"></ul>
     <div class="bought-foot"><button class="x" type="button" id="boughtClear">산 것 모두 지우기</button></div>
   </details>
 </section>
@@ -392,6 +395,13 @@ details.more .dl{margin-top:10px}
   </form>
 </dialog>
 
+<!-- 다시 담을 가게 고르기 -->
+<dialog id="backDlg">
+  <h2 id="backTitle">어디에 담을까요?</h2>
+  <div class="wrapchips" id="backStores"></div>
+  <div class="dl-foot"><div class="right"><button class="btn small ghost" type="button" id="backClose">닫기</button></div></div>
+</dialog>
+
 <!-- 영수증 내역 확인 · 고치기 -->
 <dialog id="recDlg">
   <h2 id="recTitle">내역</h2>
@@ -436,7 +446,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.6.6";
+const APP_VER = "1.7.0";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -693,9 +703,9 @@ function render(){
 
 /* ---------- 알림 띠 ---------- */
 let toastTimer = null, toastUndo = null;
-function toast(text, undo){
+function toast(text, undo, label){
   $("toastText").textContent = text;
-  toastUndo = undo || null; $("toastUndo").hidden = !undo;
+  toastUndo = undo || null; $("toastUndo").hidden = !undo; $("toastUndo").textContent = label || "되돌리기";
   $("toast").hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { $("toast").hidden = true; }, undo ? 5000 : 2600);
 }
@@ -723,9 +733,37 @@ $("urgentList").addEventListener("click", onListClick);
 $("shopExit").onclick = () => { shop = null; render(); };
 $("boughtList").addEventListener("click", e => {
   const li = e.target.closest("li[data-id]"); if (!li) return;
-  if (e.target.closest(".again")){ updateItem(li.dataset.id, { done: false, doneAt: 0, due: "", at: Date.now() }); toast("다시 담았어요"); }
+  if (pressFired){ pressFired = false; return; }      // 길게 눌러 가게 고르기 창을 띄운 뒤 따라오는 누르기는 무시
+  if (e.target.closest(".again")) putBack(li.dataset.id);
   else if (e.target.closest(".del")) removeItem(li.dataset.id);
 });
+/* 다시 담기: 전에 산 가게로 담고, 알림 띠의 [가게 바꾸기]로 바로 다른 가게를 고를 수 있음 */
+function putBack(id, sid){
+  const it = items.find(i => i.id === id); if (!it) return;
+  const f = { done: false, doneAt: 0, due: "", at: Date.now() };
+  if (sid !== undefined) f.s = sid;
+  updateItem(id, f);
+  toast(`${storeOf(it.s).name}에 다시 담았어요`, () => openBackPick(id), "가게 바꾸기");
+}
+/* 산 것 줄을 길게 누르면(또는 [가게 바꾸기]) 어느 가게에 담을지 고르는 창 */
+let backPick = null, pressTimer = null, pressFired = false, pressAt = null;
+function openBackPick(id){
+  const it = items.find(i => i.id === id); if (!it) return;
+  backPick = id;
+  $("backTitle").textContent = `${it.t}, 어디에 담을까요?`;
+  chipRow($("backStores"), storeChoices(), storeOf(it.s).id, v => { const k = backPick; backPick = null; $("backDlg").close(); putBack(k, v); });
+  $("backDlg").showModal();
+}
+$("backClose").onclick = () => $("backDlg").close();
+const pressOff = () => { clearTimeout(pressTimer); pressTimer = null; };
+$("boughtList").addEventListener("pointerdown", e => {
+  const li = e.target.closest("li[data-id]"); if (!li || e.target.closest(".del")) return;
+  pressFired = false; pressAt = [e.clientX, e.clientY]; pressOff();
+  pressTimer = setTimeout(() => { pressTimer = null; pressFired = true; openBackPick(li.dataset.id); }, 550);
+});
+$("boughtList").addEventListener("pointermove", e => { if (pressTimer && pressAt && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 10) pressOff(); });
+["pointerup", "pointercancel", "pointerleave"].forEach(n => $("boughtList").addEventListener(n, pressOff));
+$("boughtList").addEventListener("contextmenu", e => e.preventDefault());      // 길게 누를 때 휴대폰의 글자 고르기 메뉴가 뜨지 않게
 armTwice($("boughtClear"), "산 것 모두 지우기", "한 번 더 누르면 지워요", clearBought);
 
 /* 지우기 같은 단추는 두 번 눌러야 됨 */
@@ -1260,6 +1298,7 @@ window.addEventListener("pageshow", () => setTimeout(checkShared, 700));
 
 /* ---------- 업데이트 소식 (굵직한 기능만) ---------- */
 const NEWS = [
+  {v:"1.7.0", d:"2026. 11. 16.", items:["산 것을 다시 담을 때 가게를 바꿀 수 있어요. 산 것 줄을 길게 누르거나, 다시 담은 뒤 뜨는 [가게 바꾸기]를 눌러 주세요."]},
   {v:"1.6.0", d:"2026. 11. 15.", items:["캡처한 영수증을 [공유]로 바로 넣을 수 있어요. 이마트 앱 같은 곳의 모바일 영수증을 캡처하고 공유 목록에서 사야지!를 고르면 바로 읽기 시작해요. (안드로이드에서 홈 화면에 설치했을 때)"]},
   {v:"1.5.0", d:"2026. 11. 15.", items:["내역의 산 것이 단가 · 수량 · 금액으로 나뉘어요. 행사 할인을 받은 물건은 얼마 할인받았는지도 보여요."]},
   {v:"1.4.0", d:"2026. 11. 15.", items:["영수증을 읽는 동안 화면이 막히지 않아요. 맨 위 띠에 지금 무엇을 하는지와 걸린 시간이 보이고, 그동안 다른 곳을 둘러봐도 돼요."]},
