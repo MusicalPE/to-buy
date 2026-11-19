@@ -234,6 +234,26 @@ details.more{margin-top:12px;border-top:1px solid var(--rule);padding-top:8px}
 details.more summary{font-size:13px;color:var(--muted);cursor:pointer}
 details.more .dl{margin-top:10px}
 
+/* 사용 안내 */
+.tb-help-btn{flex:none;display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 4px;border:0;background:transparent;color:var(--ink);font-size:14px;font-weight:700;text-decoration:none;cursor:pointer}
+.tb-help-btn:hover{text-decoration:underline;text-underline-offset:3px}
+.tb-help-dot{width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper);display:inline-grid;place-items:center;font-size:13px;font-weight:800;line-height:1;text-decoration:none}
+.tb-help-row{display:flex;justify-content:flex-end;margin:-6px 0 -8px}
+#helpDlg{width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:0;overflow:hidden}
+#helpDlg[open]{display:flex;flex-direction:column}
+.tb-help-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 14px 8px 18px;border-bottom:1px solid var(--rule)}
+.tb-help-head h2{margin:0;font-size:24px}
+.tb-help-x{flex:none;min-width:44px;min-height:44px;border:0;background:transparent;color:var(--muted);font-size:14px;font-weight:700;cursor:pointer}
+.tb-help-body{overflow-y:auto;padding:4px 18px;-webkit-overflow-scrolling:touch}
+.tb-help-list{list-style:none;margin:0;padding:0}
+.tb-help-list li{display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--rule)}
+.tb-help-list li:first-child{border-top:0}
+.tb-help-num{width:24px;height:24px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-family:var(--f-mono);font-size:13px;margin-top:1px}
+.tb-help-list b{display:block;font-size:15px;margin-bottom:3px}
+.tb-help-list ul{margin:0;padding-left:16px;font-size:14px;color:var(--muted);line-height:1.55}
+.tb-help-list ul li{display:list-item;padding:1px 0;border:0}
+.tb-help-foot{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 18px 14px;border-top:1px solid var(--rule);flex-wrap:wrap}
+.tb-help-foot a{margin-right:auto;color:var(--ink);font-size:14px;font-weight:700;text-underline-offset:3px;min-height:44px;display:inline-flex;align-items:center}
 .toast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:99px;padding:10px 16px;font-size:14px;display:flex;align-items:center;gap:12px;max-width:calc(100vw - 28px);z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .toast button{border:0;background:transparent;color:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;padding:0;white-space:nowrap}
 @media (prefers-reduced-motion: no-preference){
@@ -252,6 +272,7 @@ details.more .dl{margin-top:10px}
       <h1>사야지!</h1>
     </div>
   </div>
+  <button type="button" class="tb-help-btn" data-help><span class="tb-help-dot" aria-hidden="true">?</span>사용 안내</button>
 </div>
 
 <!-- 내역: 영수증으로 쌓는 장보기 기록 -->
@@ -309,6 +330,7 @@ details.more .dl{margin-top:10px}
 
 <!-- 설정 -->
 <section class="view" id="viewSet" hidden>
+  <div class="tb-help-row"><button type="button" class="tb-help-btn" data-help><span class="tb-help-dot" aria-hidden="true">?</span>사용 안내</button></div>
   <div class="card" id="famCard">
     <h2 id="acctTitle">가족과 같이 쓰기</h2>
     <div id="acctBody"></div>
@@ -395,6 +417,13 @@ details.more .dl{margin-top:10px}
   </form>
 </dialog>
 
+<!-- 사용 안내 -->
+<dialog id="helpDlg" aria-labelledby="helpTitle">
+  <div class="tb-help-head"><h2 id="helpTitle">사야지! 간략 사용법</h2><button type="button" class="tb-help-x" id="helpX" aria-label="닫기">닫기</button></div>
+  <div class="tb-help-body"><ol class="tb-help-list" id="helpList"><li><span class="tb-help-num">1</span><div><b>살 물건 적기</b><ul><li>위 칸에 물건을 적고 "어디서"에서 가게를, "언제"에서 기한을 고른 뒤 "담기"를 누릅니다.</li><li>쉼표로 나눠 적으면 여러 개가 한 번에 담겨요.</li><li>담긴 물건 이름을 누르면 이름·가게·기한을 고치거나 "지우기"할 수 있어요.</li></ul></div></li><li><span class="tb-help-num">2</span><div><b>급한 물건 먼저 보기</b><ul><li>오늘·내일까지이거나 날짜가 지난 물건은 맨 위 "급해요"에 모여요.</li><li>"급해요"에서 바로 체크해도 됩니다.</li></ul></div></li><li><span class="tb-help-num">3</span><div><b>가게에서 장보기</b><ul><li>가게 묶음의 "여기서 장보기"를 누르면 그 가게에서 살 것만 크게 보여요.</li><li>산 물건은 체크하면 "산 것"으로 내려가요. 잘못 눌렀으면 아래 띠의 "되돌리기"를 누릅니다.</li><li>다 보면 "전체 보기"로 돌아와요.</li></ul></div></li><li><span class="tb-help-num">4</span><div><b>자주 사는 물건 다시 담기</b><ul><li>아래 "산 것"을 열고 "다시 담기"를 누르면 전에 산 가게로 다시 담겨요.</li><li>다른 가게에 담으려면 줄을 길게 누르거나, 담은 뒤 뜨는 "가게 바꾸기"를 누릅니다.</li><li>"산 것 모두 지우기"로 산 것 목록을 비울 수 있어요.</li></ul></div></li><li><span class="tb-help-num">5</span><div><b>영수증으로 내역 쌓기</b><ul><li>아래 메뉴 "내역"에서 "영수증 찍어 넣기"를 누르면 AI가 가게·날짜·금액을 읽어요.</li><li>읽은 내용이 영수증과 같은지 보고 "확인했어요"를 누르면 내역에 들어가고 사진은 바로 버려요.</li><li>캡처한 모바일 영수증은 [공유]에서 사야지!를 고르면 되고, "직접 적기"도 됩니다.</li></ul></div></li><li><span class="tb-help-num">6</span><div><b>가족과 같이 쓰기</b><ul><li>"설정" 맨 위 가족 칸의 QR을 보여 주거나 "초대 링크 복사"로 가족을 부릅니다.</li><li>한 사람이 담거나 체크한 것이 다른 사람 화면에도 바로 보여요.</li><li>다른 가족이 적은 물건에는 그 사람 이름이 작게 붙어요.</li></ul></div></li><li><span class="tb-help-num">7</span><div><b>우리 집에 맞게 고치기</b><ul><li>"설정"의 "가게 고치기"에서 가게를 더하고, 이름·색·순서를 바꿔요.</li><li>"기한 단추 고치기"에서 "언제"에 나올 단추를 고르거나 "며칠 뒤"를 더해요.</li></ul></div></li><li><span class="tb-help-num">8</span><div><b>자주 묻는 것</b><ul><li>저장: 가족 공간에 들어가 있으면 서버에, 아니면 이 기기에만 저장돼요.</li><li>다른 기기: 같은 구글 계정으로 로그인하면 같은 목록이 보여요.</li><li>지운 물건과 내역은 되살릴 수 없어요. 그래서 지울 때 두 번 누르게 되어 있어요.</li></ul></div></li></ol></div>
+  <div class="tb-help-foot"><a id="helpDemo" href="./?demo" target="_blank" rel="noopener">예시로 미리 눌러 보기</a><button type="button" class="btn small" id="helpOk">확인</button></div>
+</dialog>
+
 <!-- 다시 담을 가게 고르기 -->
 <dialog id="backDlg">
   <h2 id="backTitle">어디에 담을까요?</h2>
@@ -447,7 +476,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.8.0";
+const APP_VER = "1.9.0";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -1325,8 +1354,15 @@ checkShared();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(checkShared, 700); });
 window.addEventListener("pageshow", () => setTimeout(checkShared, 700));
 
+/* ---------- 사용 안내 ---------- */
+document.querySelectorAll("[data-help]").forEach(b => b.addEventListener("click", () => { $("helpDlg").showModal(); $("helpDlg").querySelector(".tb-help-body").scrollTop = 0; }));
+$("helpX").onclick = () => $("helpDlg").close();
+$("helpOk").onclick = () => $("helpDlg").close();
+$("helpDemo").hidden = DEMO;      // 미리보기 안에서는 숨김
+
 /* ---------- 업데이트 소식 (굵직한 기능만) ---------- */
 const NEWS = [
+  {v:"1.9.0", d:"2026. 11. 20.", items:["사용 안내 추가"]},
   {v:"1.7.0", d:"2026. 11. 16.", items:["산 것을 다시 담을 때 가게를 바꿀 수 있어요. 산 것 줄을 길게 누르거나, 다시 담은 뒤 뜨는 [가게 바꾸기]를 눌러 주세요."]},
   {v:"1.6.0", d:"2026. 11. 15.", items:["캡처한 영수증을 [공유]로 바로 넣을 수 있어요. 이마트 앱 같은 곳의 모바일 영수증을 캡처하고 공유 목록에서 사야지!를 고르면 바로 읽기 시작해요. (안드로이드에서 홈 화면에 설치했을 때)"]},
   {v:"1.5.0", d:"2026. 11. 15.", items:["내역의 산 것이 단가 · 수량 · 금액으로 나뉘어요. 행사 할인을 받은 물건은 얼마 할인받았는지도 보여요."]},

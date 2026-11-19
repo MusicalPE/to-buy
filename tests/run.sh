@@ -12,7 +12,7 @@ node check.mjs || { echo "== 코드 검사 실패: 올리지 마세요 =="; exit
 [ -d node_modules/qrcode-generator ] || npm install --silent --no-audit --no-fund >/dev/null 2>&1 || { echo "시험 준비(npm install) 실패"; exit 1; }
 mkdir -p out && cd out
 fail=0; n=0
-for t in basic family receipts share demo; do
+for t in basic family receipts share help demo; do
   n=$((n+1))
   out=$(timeout 180 node ../$t.mjs 2>&1 | grep -v "agent-proxy\|connect_rejected\|Allowed domains\|For details\|^- \|^(oldest\|^$")
   last=$(echo "$out" | tail -1)
