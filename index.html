@@ -418,6 +418,7 @@ details.more .dl{margin-top:10px}
       <label><span>낸 돈(원)</span><input class="field" id="recTotal" type="number" min="0" max="99999999" inputmode="numeric" required></label>
     </div>
     <div>
+      <p class="msg" id="recDup" hidden></p>
       <p>산 것 <span id="recItemsNote"></span></p>
       <div class="ihead" id="recItemsHead"><span>이름</span><span>단가</span><span>수량</span><span>금액</span><span></span></div>
       <div id="recItems"></div>
@@ -446,7 +447,7 @@ details.more .dl{margin-top:10px}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "1.7.0";
+const APP_VER = "1.8.0";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
@@ -968,6 +969,7 @@ function openRec(rec, photo){
 function drawRecStores(){
   chipRow($("recStores"), stores.map(s => ({ v: s.id, label: s.name, c: colorOf(s) })).concat([{ v: "", label: "다른 곳", c: colorOf(ANY) }]), recEdit.s, v => { recEdit.s = v; drawRecStores(); });
   $("recStoreName").hidden = recEdit.s !== "";
+  recDupCheck();
 }
 /* 산 것 한 줄 = 이름 · 단가 · 수량 · 금액(할인을 뺀 뒤 실제로 낸 돈). 예전에 적은 줄(이름·금액만)은 수량 1로 봄 */
 const numOr = (v, d) => { const n = +v; return v === "" || v === undefined || v === null || !isFinite(n) ? d : n; };
@@ -995,7 +997,18 @@ function readRecItems(){
   }).filter(i => i.n).slice(0, 60);
 }
 /* 적힌 물건값을 더한 값이 낸 돈과 다르면 알려 줌(할인·봉투값 때문에 다를 수 있어 막지는 않음) */
+/* 같은 날 같은 가게에서 같은 금액으로 넣은 내역이 이미 있으면 알려 줌(막지는 않음) */
+function recDupCheck(){
+  const date = $("recDate").value, tv = $("recTotal").value, total = Math.round(+tv);
+  const name = recEdit && recEdit.s ? storeOf(recEdit.s).name : $("recStoreName").value.trim();
+  const dup = tv !== "" && recEdit && receipts.find(r => r.id !== recEdit.id && r.date === date && Math.round(+r.total) === total && norm(recStore(r).name) === norm(name || "기타"));
+  $("recDup").hidden = !dup;
+  $("recDup").textContent = dup ? `같은 날 ${recStore(dup).name}에서 ${won(total)}으로 넣은 내역이 이미 있어요. 같은 영수증이면 [닫기]를 눌러 주세요.` : "";
+}
+$("recDate").addEventListener("input", recDupCheck);
+$("recStoreName").addEventListener("input", recDupCheck);
 function recNote(){
+  recDupCheck();
   const its = readRecItems(), sum = its.reduce((a, i) => a + i.p, 0), total = Math.round(+$("recTotal").value) || 0;
   $("recItemsHead").hidden = !$("recItems").children.length;
   $("recItemsNote").textContent = !its.length ? "(적지 않아도 돼요)" : sum === total ? `${its.length}가지 · 더하면 낸 돈과 같아요` : `${its.length}가지 · 더하면 ${won(sum)}`;
@@ -1252,12 +1265,20 @@ function tryShare(force){
   if (AI_WHY[mode]){ toast(AI_WHY[mode]); setTab("set"); $("aiCard").scrollIntoView({ block: "start" }); dropShared(); return; }
   if (scanJob) jobEnd();
   toast("공유받은 영수증을 읽을게요");
+  markSeen(pendingHash); pendingHash = "";
   startScan(file).then(dropShared, dropShared);      // 다 읽은 뒤에 맡아 둔 그림을 지움(읽는 도중 화면이 새로 열려도 그림이 사라지지 않게)
 }
 async function dropShared(){ try{ await (await caches.open("tobuy-share")).delete("./shared-receipt"); }catch(e){} }
 /* 맡아 둔 그림이 있으면 가져옴. 브라우저에 따라 주소에 ?shared=1 이 안 붙거나, 열려 있던 앱이 그대로 앞으로 나오기도 해서
    주소 표시에 기대지 않고 앱을 열 때·다시 보일 때·서비스 워커가 알릴 때마다 확인함. 5분 넘게 묵은 그림은 읽지 않고 버림 */
-let shareBusy = false, lastSharedAt = 0;
+let shareBusy = false, lastSharedAt = 0, pendingHash = "";
+const KEY_SEEN = "tobuy-share-seen";      // 읽은 공유 그림의 지문(그림 자체는 남기지 않음), 60일 · 40개까지
+function seenShares(){ try{ return JSON.parse(lsGet(KEY_SEEN) || "[]").filter(x => x && x.h && Date.now() - x.at < 60 * 864e5); }catch(e){ return []; } }
+function markSeen(h){ if (h) lsSet(KEY_SEEN, JSON.stringify(seenShares().filter(x => x.h !== h).concat([{ h, at: Date.now() }]).slice(-40))); }
+async function blobHash(b){
+  try{ const d = await crypto.subtle.digest("SHA-256", await b.arrayBuffer()); return [...new Uint8Array(d)].slice(0, 12).map(x => x.toString(16).padStart(2, "0")).join(""); }
+  catch(e){ return ""; }
+}
 const KEY_SHAREDIAG = "tobuy-share-diag";
 function renderShareDiag(){
   let d = null; try{ d = JSON.parse(lsGet(KEY_SHAREDIAG) || "null"); }catch(e){}
@@ -1282,9 +1303,17 @@ async function checkShared(){
       if (Date.now() - at >= 5 * 60000) await c.delete("./shared-receipt");
       else if (at !== lastSharedAt){        // 같은 그림을 이 화면에서 두 번 읽지 않음
         lastSharedAt = at;
-        pendingShare = await r.blob();
-        clearTimeout(shareTimer); shareTimer = setTimeout(() => tryShare(true), 8000);
-        tryShare();
+        const blob = await r.blob(), h = await blobHash(blob);
+        /* 안드로이드는 공유로 열었던 앱을 나중에 다시 켤 때 그 공유를 한 번 더 보내기도 함 →
+           전에 읽은 그림과 똑같으면 저절로 읽지 않고, 알림 띠의 [다시 읽기]로만 읽음 */
+        if (h && seenShares().some(x => x.h === h)){
+          await c.delete("./shared-receipt");
+          toast("전에 공유받은 영수증이라 다시 읽지 않았어요", () => { pendingShare = blob; pendingHash = h; tryShare(true); }, "다시 읽기");
+        } else {
+          pendingShare = blob; pendingHash = h;
+          clearTimeout(shareTimer); shareTimer = setTimeout(() => tryShare(true), 8000);
+          tryShare();
+        }
       }
     }
   }catch(e){}
