@@ -1,14 +1,14 @@
 // 사용 안내: 단추 자리(제목 줄 · 설정 맨 위), 창 열기 · 항목 수 · 닫기(Esc · 닫기 · 확인 · 바깥), 휴대폰에서 넘치지 않는지, 미리보기 안에서는 예시 링크 숨김
 import { PAGE, newPage, check, noOverflow, finish } from "./_common.mjs";
 const ITEMS = 8;
-for (const [w, h] of [[390, 844], [320, 568], [1100, 800]]){
+for (const [w, h] of [[390, 844], [320, 568], [1100, 800], [1440, 900]]){
   const p = await newPage(w, "light", h);
   await p.goto(PAGE); await p.waitForTimeout(500);
   const open = () => p.locator("#helpDlg").evaluate(d => d.open);
   check(await p.locator(".top > .tb-help-btn").count() === 1 && await p.locator(".top > .tb-help-btn").isVisible(), `[${w}] 제목 줄에 사용 안내 단추가 없음`);
   check(await p.locator(".top > .tb-help-btn .tb-help-dot").textContent() === "?" && /사용 안내/.test(await p.locator(".top > .tb-help-btn").textContent()), `[${w}] 단추 모양(? + 사용 안내)이 다름`);
   check((await p.locator(".top > .tb-help-btn").boundingBox()).height >= 44, `[${w}] 단추 높이가 44px보다 작음`);
-  check(await p.evaluate(() => { const b = document.querySelector(".top > .tb-help-btn").getBoundingClientRect(), t = document.querySelector(".top").getBoundingClientRect(); return b.right > t.right - 2; }), `[${w}] 단추가 제목 줄 오른쪽 끝에 있지 않음`);
+  check(await p.evaluate(() => { const b = document.querySelector(".top > .tb-help-btn").getBoundingClientRect(), t = document.querySelector(".top").getBoundingClientRect(); return b.right > t.right - 24 && b.top < t.top + 60; }), `[${w}] 단추가 제목 줄 오른쪽 위에 있지 않음`);
   check(await p.locator(".tb-help-dot").count() === 2 && await p.evaluate(() => [...document.querySelectorAll("[class]")].filter(e => e.className.toString().split(/\s+/).includes("tb-help-dot")).every(e => e.closest(".tb-help-btn"))), `[${w}] 동그라미 class가 다른 곳에도 쓰임`);
   await noOverflow(p, `[${w}] 단추가 들어간 첫 화면`);
   // 제목 줄 단추 → 창
@@ -25,12 +25,14 @@ for (const [w, h] of [[390, 844], [320, 568], [1100, 800]]){
   check(!(await open()), `[${w}] Esc로 안 닫힘`);
   // 설정 맨 위 단추 → 창, 닫기 · 확인 · 바깥 누르기
   await p.click('.tabbar button[data-tab="set"]');
-  check(await p.locator("#viewSet > .tb-help-row:first-child .tb-help-btn").isVisible(), `[${w}] 설정 맨 위에 사용 안내 단추가 없음`);
+  if (w < 1100) check(await p.locator("#viewSet > .tb-help-row:first-child .tb-help-btn").isVisible(), `[${w}] 설정 맨 위에 사용 안내 단추가 없음`);
+  else check(await p.locator("#viewSet .tb-help-btn").isHidden() && await p.locator(".top > .tb-help-btn").isVisible(), `[${w}] 넓은 화면 설정에서 사용 안내 단추가 두 개 보임`);
+  const helpIn = w < 1100 ? "#viewSet .tb-help-btn" : ".top > .tb-help-btn";
   check(await p.locator(".tabbar button").count() === 3, `[${w}] 아래 메뉴 칸 수가 달라짐`);
-  await p.click("#viewSet .tb-help-btn"); check(await open(), `[${w}] 설정의 단추로 창이 안 열림`);
+  await p.click(helpIn); check(await open(), `[${w}] 설정에서 단추로 창이 안 열림`);
   await p.click("#helpX"); check(!(await open()), `[${w}] 닫기로 안 닫힘`);
-  await p.click("#viewSet .tb-help-btn"); await p.click("#helpOk"); check(!(await open()), `[${w}] 확인으로 안 닫힘`);
-  await p.click("#viewSet .tb-help-btn"); await p.mouse.click(3, 3); await p.waitForTimeout(100);
+  await p.click(helpIn); await p.click("#helpOk"); check(!(await open()), `[${w}] 확인으로 안 닫힘`);
+  await p.click(helpIn); await p.mouse.click(3, 3); await p.waitForTimeout(100);
   check(!(await open()), `[${w}] 바깥을 눌러도 안 닫힘`);
 }
 // 미리보기 안에서는 예시 링크 숨김
