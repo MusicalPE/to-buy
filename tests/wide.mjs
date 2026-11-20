@@ -9,6 +9,7 @@ for (const [w, h] of [[1440, 900], [1180, 800]]){
   check(await p.evaluate(() => new Set([...document.querySelectorAll("#list .store")].map(e => Math.round(e.getBoundingClientRect().top))).size < document.querySelectorAll("#list .store").length), `[${w}] 가게 묶음이 바둑판으로 놓이지 않음`);
   check(menu.y < 80 && menu.x > form.x + form.width, `[${w}] 메뉴가 오른쪽 위에 있지 않음`);
   await noOverflow(p, `[${w}] 넓은 화면 장바구니`);
+  check(await p.evaluate(() => { const d = document.querySelector(".top .tb-help-dot").getBoundingClientRect(), l = document.querySelector(".top .logo").getBoundingClientRect(), t = document.querySelector(".top").getBoundingClientRect(); return Math.abs(d.top - l.top) <= 2 && d.right <= t.right; }), `[${w}] 사용 안내 동그라미 윗선이 로고 윗선과 안 맞음`);
   // 내역 · 설정 탭에서도 왼쪽 적는 칸이 보이고, 담으면 장바구니에 들어감
   await p.click('.tabbar button[data-tab="log"]');
   check(await p.locator("#viewLog").isVisible() && await p.locator("#addForm").isVisible() && await p.locator('.tabbar button[data-tab="log"]').getAttribute("aria-current") === "page", `[${w}] 내역 탭에서 왼쪽 적는 칸이 안 보이거나 메뉴 표시가 이상함`);

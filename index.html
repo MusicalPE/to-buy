@@ -244,10 +244,10 @@ body:not([data-tab="home"]) .lay-home{display:none}
   .lay-side{position:sticky;top:24px;max-height:calc(100vh - 48px);overflow:auto;display:flex;flex-direction:column;gap:16px;padding-bottom:4px;scrollbar-width:thin;overscroll-behavior:contain}
   .lay-main{display:flex;flex-direction:column;gap:20px;min-width:0}
   body:not([data-tab="home"]) .lay-home,.lay-home{display:flex;flex-direction:column;gap:16px}
-  .lay-side .top{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:50px 18px 18px}
-  .lay-side .top .tb-help-btn{position:absolute;top:4px;right:10px}
+  .lay-side .top{align-items:flex-start;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:18px}
+  .lay-side .top .tb-help-btn{margin:-11px -6px 0 0}      /* 동그라미 윗선을 로고 윗선에 맞춤(단추 높이 44 - 동그라미 22)/2 */
   .lay-side .logo{width:76px}
-  .lay-side h1{font-size:40px}
+  .lay-side h1{font-size:36px}
   .lay-side .status{margin-top:0;padding:0 4px}
   /* 아래 메뉴 → 오른쪽 위 가운데 알약 단추 */
   .tabbar{position:sticky;top:24px;left:auto;right:auto;bottom:auto;align-self:center;z-index:40;display:flex;gap:4px;padding:5px;border:1px solid var(--line);border-radius:99px;box-shadow:0 4px 14px rgba(42,40,36,.08)}
@@ -520,7 +520,7 @@ body:not([data-tab="home"]) .lay-home{display:none}
 /* 사야지! To-Buy — 가게별 장보기 메모
    물건은 이 기기에 저장되고, 가족 공간에 들어가면 가족과 같은 목록을 함께 봄(app-firebase.js)
    Made by 음악적체육인 */
-const APP_VER = "2.0.0";
+const APP_VER = "2.0.1";
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = s => String(s).replace(/\s+/g, "").toLowerCase();
